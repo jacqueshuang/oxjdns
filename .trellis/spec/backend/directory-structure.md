@@ -29,6 +29,7 @@
 
 - Installed daemon binary: `/usr/bin/oxidns`
 - Config file: `/etc/oxidns/config.yaml`
+- Default config template: `/usr/share/oxidns/config.default.yaml`
 - Generated password file: `/etc/oxidns/initial_password`
 - Working directory: `/var/lib/oxidns`
 - WebUI assets: `/usr/share/oxidns/webui`
@@ -50,6 +51,10 @@
   `/etc/oxidns/initial_password` and pass it to OxiDNS with
   `OXIDNS_API_PASSWORD`; otherwise `opkg` treats the conffile as user-modified
   on every upgrade.
+- Release packages must not ship `/etc/oxidns/config.yaml` as a package-owned
+  conffile. Ship `/usr/share/oxidns/config.default.yaml` instead and let
+  `/usr/libexec/oxidns-openwrt init-config` create `/etc/oxidns/config.yaml`
+  only when it is missing.
 - OpenWrt 24.10 `.ipk` release artifacts must use the OpenWrt package envelope:
   a gzip-compressed tar containing `./debian-binary`, `./data.tar.gz`, and
   `./control.tar.gz`. Do not assemble them as Debian `ar` archives; OpenWrt
@@ -67,6 +72,8 @@
   emit `resolve_conffiles` warnings and create `/etc/oxidns/config.yaml-opkg`.
   For legacy installs, migrate only when the existing config and `.opkg` config
   differ only by comments and the password line.
+- Shipping `/etc/oxidns/config.yaml` in package data or `conffiles` -> `opkg`
+  may emit the conffile warning before post-install migration can run.
 - Missing `api.http.auth.basic.password` in `/etc/oxidns/config.yaml` when
   resetting the password -> helper exits non-zero and prints an error.
 - `IPKG_INSTROOT` is set during image builds -> post-install must skip service
@@ -96,6 +103,10 @@
 - The IPK smoke test must verify the outer archive with `tar -tzf` and confirm
   the three top-level entries `./debian-binary`, `./data.tar.gz`, and
   `./control.tar.gz` exist.
+- The IPK smoke test must inspect the `oxidns` package payload and confirm
+  `data.tar.gz` contains `./usr/share/oxidns/config.default.yaml`, does not
+  contain `./etc/oxidns/config.yaml`, and `control.tar.gz` does not contain
+  `./conffiles`.
 - `oxidns check -c <packaged config> -d <existing temp dir>` must pass.
 - Release workflow changes should be reviewed for artifact names consumed by the
   publish job.

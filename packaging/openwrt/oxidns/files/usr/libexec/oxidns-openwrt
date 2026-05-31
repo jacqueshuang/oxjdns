@@ -1,6 +1,7 @@
 #!/bin/sh
 
 CONFIG=${OXIDNS_CONFIG:-/etc/oxidns/config.yaml}
+DEFAULT_CONFIG=${OXIDNS_DEFAULT_CONFIG:-/usr/share/oxidns/config.default.yaml}
 PASSWORD_FILE=${OXIDNS_PASSWORD_FILE:-/etc/oxidns/initial_password}
 SERVICE=/etc/init.d/oxidns
 WORKDIR=${OXIDNS_WORKDIR:-/var/lib/oxidns}
@@ -98,7 +99,17 @@ migrate_opkg_config_if_safe() {
 init_config() {
 	mkdir -p "$(dirname "$CONFIG")" "$WORKDIR"
 
-	[ -f "$CONFIG" ] || fail "config not found: $CONFIG"
+	if [ ! -f "$CONFIG" ]; then
+		if [ -f "${CONFIG}-opkg" ]; then
+			mv "${CONFIG}-opkg" "$CONFIG"
+		elif [ -f "$DEFAULT_CONFIG" ]; then
+			cp "$DEFAULT_CONFIG" "$CONFIG"
+		else
+			fail "config not found: $CONFIG and default config not found: $DEFAULT_CONFIG"
+		fi
+		chmod 600 "$CONFIG"
+	fi
+
 	migrate_opkg_config_if_safe
 
 	if [ ! -s "$PASSWORD_FILE" ]; then

@@ -48,7 +48,7 @@
 - 安装时自动生成随机管理密码，默认用户名为 `admin`。
 - LuCI / iStore 轻量入口提供查看初始密码或重置密码的入口。
 - 第一版 `.ipk` 只通过 GitHub Release 分发，不生成 opkg 软件源索引，不尝试 iStore 官方仓库上架。
-- 配置文件需要作为 OpenWrt `conffiles` 处理，升级时尽量保留用户配置。
+- 运行配置需要在设备上保留，升级时不能无声覆盖用户配置；为避免 `opkg` 的 conffile 差异警告，包内只携带默认配置模板，不把 `/etc/oxidns/config.yaml` 作为包拥有的 `conffiles` 下发。
 - 文档需要说明如何在 OpenWrt / iStoreOS 上构建、安装、启动和卸载。
 - 不影响现有 Linux、macOS、Windows、Debian、Docker 发布产物。
 
@@ -56,7 +56,7 @@
 
 - [ ] 仓库中存在 OpenWrt 包定义目录。
 - [ ] 包可以安装 OxiDNS 二进制、默认配置、服务脚本和必要的 WebUI 文件。
-- [ ] 配置文件被声明为持久配置文件，升级时不会无声覆盖用户配置。
+- [ ] 运行配置在设备上持久保留，升级时不会无声覆盖用户配置，也不会因包内 conffile 比较反复触发差异警告。
 - [ ] `/etc/init.d/oxidns enable/start/stop/restart/reload` 可用于服务管理。
 - [ ] 安装服务包后默认启用并启动 OxiDNS。
 - [ ] 默认配置不会占用系统 DNS 常用的 53 端口。
@@ -88,7 +88,7 @@
 - OpenWrt 包建议放在 `packaging/openwrt/oxidns/` 之类的位置。
 - LuCI 入口建议作为独立包处理，例如 `luci-app-oxidns`，避免把服务包和 Web 管理入口强绑在一起。
 - OpenWrt 服务脚本建议安装到 `/etc/init.d/oxidns`，并使用 `USE_PROCD=1`。
-- OpenWrt 包可以复用现有布局：`/usr/bin/oxidns`、`/etc/oxidns/config.yaml`、`/var/lib/oxidns`、`/usr/share/oxidns/webui`。
+- OpenWrt 包可以复用现有运行布局：`/usr/bin/oxidns`、`/etc/oxidns/config.yaml`、`/var/lib/oxidns`、`/usr/share/oxidns/webui`；默认配置模板放在 `/usr/share/oxidns/config.default.yaml`，首次启动时再生成 `/etc/oxidns/config.yaml`。
 - OpenWrt Rust 包可以参考官方 packages feed 里的 `lang/rust/rust-package.mk`，用 `cargo install --locked` 构建。
 - 如果要做到普通用户“直接安装”，还需要 release 或 CI 产出 `.ipk`，只提供源码 feed 还不够。
 

@@ -63,6 +63,7 @@ make package/oxidns/compile V=s \
 ## Runtime defaults
 
 - Config: `/etc/oxidns/config.yaml`
+- Default config template: `/usr/share/oxidns/config.default.yaml`
 - Generated password: `/etc/oxidns/initial_password`
 - Working directory: `/var/lib/oxidns`
 - WebUI assets: `/usr/share/oxidns/webui`
@@ -74,6 +75,7 @@ service, and starts it on real devices. It skips service startup when
 `IPKG_INSTROOT` is set during image builds.
 
 The generated API password is stored in `/etc/oxidns/initial_password` and is
-passed to OxiDNS through `OXIDNS_API_PASSWORD` by the init script. The installer
-does not rewrite `/etc/oxidns/config.yaml` for password generation, so routine
-upgrades do not mark the config as changed unless the user actually edited it.
+passed to OxiDNS through `OXIDNS_API_PASSWORD` by the init script. The package
+ships `/usr/share/oxidns/config.default.yaml` and creates
+`/etc/oxidns/config.yaml` only when it is missing, so routine upgrades do not
+reinstall or compare the runtime config unless the user explicitly manages it.

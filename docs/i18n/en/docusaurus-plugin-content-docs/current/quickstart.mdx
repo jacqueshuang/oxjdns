@@ -215,6 +215,7 @@ Default paths and ports:
 | Item | Default |
 | --- | --- |
 | Config file | `/etc/oxidns/config.yaml` |
+| Default config template | `/usr/share/oxidns/config.default.yaml` |
 | Initial password | `/etc/oxidns/initial_password` |
 | Working directory | `/var/lib/oxidns` |
 | WebUI assets | `/usr/share/oxidns/webui` |
@@ -255,13 +256,14 @@ Uninstall:
 opkg remove luci-app-oxidns oxidns
 ```
 
-`/etc/oxidns/config.yaml` and `/etc/oxidns/initial_password` are config files and are kept where possible during upgrades or package removal. Delete `/etc/oxidns` and `/var/lib/oxidns` manually when you want a full purge.
+`/etc/oxidns/config.yaml` and `/etc/oxidns/initial_password` are device-side runtime config files and are kept where possible during upgrades or package removal. Delete `/etc/oxidns` and `/var/lib/oxidns` manually when you want a full purge.
 
 The generated API password is stored in `/etc/oxidns/initial_password` and is
-passed to OxiDNS through `OXIDNS_API_PASSWORD` by the init script. The installer
-does not rewrite `/etc/oxidns/config.yaml` just to generate a password, so
-routine upgrades do not repeatedly trigger `opkg` conffile-difference notices
-because of password changes.
+passed to OxiDNS through `OXIDNS_API_PASSWORD` by the init script. The package
+ships `/usr/share/oxidns/config.default.yaml` and creates
+`/etc/oxidns/config.yaml` only when it is missing, so routine upgrades do not
+repeatedly trigger `opkg` conffile-difference notices because of password
+changes.
 
 ### Build With The OpenWrt SDK
 

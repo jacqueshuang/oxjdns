@@ -54,20 +54,15 @@ define Package/oxidns/description
   management APIs, and a standalone WebUI.
 endef
 
-define Package/oxidns/conffiles
-/etc/oxidns/config.yaml
-/etc/oxidns/initial_password
-endef
-
 define Package/oxidns/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/bin/oxidns $(1)/usr/bin/oxidns
-	$(INSTALL_DIR) $(1)/etc/oxidns
-	$(INSTALL_CONF) ./files/etc/oxidns/config.yaml $(1)/etc/oxidns/config.yaml
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/oxidns $(1)/etc/init.d/oxidns
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/usr/libexec/oxidns-openwrt $(1)/usr/libexec/oxidns-openwrt
+	$(INSTALL_DIR) $(1)/usr/share/oxidns
+	$(INSTALL_CONF) ./files/etc/oxidns/config.yaml $(1)/usr/share/oxidns/config.default.yaml
 	$(INSTALL_DIR) $(1)/usr/share/oxidns/webui
 	if [ -d "$(OXIDNS_WEBUI_DIR)" ]; then \
 		$(CP) $(OXIDNS_WEBUI_DIR)/* $(1)/usr/share/oxidns/webui/; \

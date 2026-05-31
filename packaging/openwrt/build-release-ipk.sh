@@ -115,16 +115,16 @@ build_oxidns() {
   local control_dir="$work_dir/control"
 
   mkdir -p "$data_dir/usr/bin" \
-    "$data_dir/etc/oxidns" \
     "$data_dir/etc/init.d" \
     "$data_dir/usr/libexec" \
+    "$data_dir/usr/share/oxidns" \
     "$data_dir/usr/share/oxidns/webui" \
     "$control_dir"
 
   install -m 0755 "$binary" "$data_dir/usr/bin/oxidns"
-  install -m 0644 "$package_dir/files/etc/oxidns/config.yaml" "$data_dir/etc/oxidns/config.yaml"
   install -m 0755 "$package_dir/files/etc/init.d/oxidns" "$data_dir/etc/init.d/oxidns"
   install -m 0755 "$package_dir/files/usr/libexec/oxidns-openwrt" "$data_dir/usr/libexec/oxidns-openwrt"
+  install -m 0644 "$package_dir/files/etc/oxidns/config.yaml" "$data_dir/usr/share/oxidns/config.default.yaml"
   cp -R "$webui_dir"/. "$data_dir/usr/share/oxidns/webui/"
 
   cat > "$control_dir/control" <<EOF
@@ -140,11 +140,6 @@ Description: OxiDNS DNS policy orchestration engine
  OxiDNS is a high-performance DNS policy orchestration engine with UDP, TCP,
  DoT, DoQ, DoH, caching, fallback chains, rule providers, management APIs, and
  a standalone WebUI.
-EOF
-
-  cat > "$control_dir/conffiles" <<'EOF'
-/etc/oxidns/config.yaml
-/etc/oxidns/initial_password
 EOF
 
   cat > "$control_dir/postinst" <<'EOF'

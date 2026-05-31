@@ -215,6 +215,7 @@ opkg install ./oxidns-openwrt-24.10.*-<架构>-oxidns_*.ipk \
 | 项目 | 默认值 |
 | --- | --- |
 | 配置文件 | `/etc/oxidns/config.yaml` |
+| 默认配置模板 | `/usr/share/oxidns/config.default.yaml` |
 | 初始密码 | `/etc/oxidns/initial_password` |
 | 工作目录 | `/var/lib/oxidns` |
 | WebUI 静态文件 | `/usr/share/oxidns/webui` |
@@ -255,9 +256,9 @@ OpenWrt / iStoreOS 包默认允许局域网访问 `9199` 端口，并启用 Basi
 opkg remove luci-app-oxidns oxidns
 ```
 
-`/etc/oxidns/config.yaml` 和 `/etc/oxidns/initial_password` 是配置文件，升级或卸载时会尽量保留。需要彻底清理时可手动删除 `/etc/oxidns` 和 `/var/lib/oxidns`。
+`/etc/oxidns/config.yaml` 和 `/etc/oxidns/initial_password` 是设备上的运行期配置，升级或卸载时会尽量保留。需要彻底清理时可手动删除 `/etc/oxidns` 和 `/var/lib/oxidns`。
 
-随机 API 密码保存在 `/etc/oxidns/initial_password`，服务启动时会通过 `OXIDNS_API_PASSWORD` 传给 OxiDNS。安装脚本不会为了生成密码而改写 `/etc/oxidns/config.yaml`，因此正常升级不会因为随机密码变化反复触发 `opkg` 的 conffile 差异提示。
+随机 API 密码保存在 `/etc/oxidns/initial_password`，服务启动时会通过 `OXIDNS_API_PASSWORD` 传给 OxiDNS。包内只携带 `/usr/share/oxidns/config.default.yaml`，仅在缺少 `/etc/oxidns/config.yaml` 时才创建运行配置，因此正常升级不会反复触发 `opkg` 的 conffile 差异提示。
 
 ### 使用 OpenWrt SDK 自行构建
 
