@@ -402,11 +402,41 @@ jobs:
             --data-urlencode "text=${MESSAGE}" \
             --data-urlencode "disable_web_page_preview=false"
 
-  publish-crate:
-    name: Publish to crates.io
+  publish-options:
+    name: Check optional publish targets
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    needs: publish
+    outputs:
+      crates_io: ${{ steps.options.outputs.crates_io }}
+      docker: ${{ steps.options.outputs.docker }}
+    steps:
+      - name: Check configured secrets
+        id: options
+        env:
+          CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${CRATES_IO_API_TOKEN}" ]; then
+            echo "crates_io=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "crates_io=false" >> "$GITHUB_OUTPUT"
+            echo "CRATES_IO_API_TOKEN is not configured; crates.io publish will be skipped."
+          fi
+
+          if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
+            echo "docker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docker=false" >> "$GITHUB_OUTPUT"
+            echo "Docker Hub secrets are not configured; Docker publish will be skipped."
+          fi
+
+  publish-crate:
+    name: Publish to crates.io
+    if: startsWith(github.ref, 'refs/tags/') && needs.publish-options.outputs.crates_io == 'true'
+    runs-on: ubuntu-latest
+    needs: [publish, publish-options]
     steps:
       - uses: actions/checkout@v6
 
@@ -422,8 +452,8 @@ jobs:
 
   docker:
     name: Publish Docker Images
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: publish
+    if: startsWith(github.ref, 'refs/tags/') && needs.publish-options.outputs.docker == 'true'
+    needs: [publish, publish-options]
     uses: ./.github/workflows/docker.yml
     with:
       OXIDNS_VERSION: ${{ github.ref_name }}
