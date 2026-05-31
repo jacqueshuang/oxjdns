@@ -45,6 +45,10 @@
   prebuilt musl binaries and WebUI assets. Keep SDK source builds available via
   `packaging/openwrt/oxidns/Makefile`, but do not require CI to compile LuCI
   feed dependencies just to assemble release `.ipk` files.
+- OpenWrt 24.10 `.ipk` release artifacts must use the OpenWrt package envelope:
+  a gzip-compressed tar containing `./debian-binary`, `./data.tar.gz`, and
+  `./control.tar.gz`. Do not assemble them as Debian `ar` archives; OpenWrt
+  `opkg` reports those as malformed packages.
 
 ### 4. Validation & Error Matrix
 
@@ -52,6 +56,8 @@
   fail package installation step with a clear "WebUI assets not found" error.
 - Missing `--webui` or an executable `--binary` for `build-release-ipk.sh` ->
   fail before writing release artifacts.
+- Debian `ar`-style `.ipk` release output -> `opkg install` fails with
+  "Malformed package file"; validate the outer archive with `tar -tzf`.
 - Missing `api.http.auth.basic.password` in `/etc/oxidns/config.yaml` when
   resetting the password -> helper exits non-zero and prints an error.
 - `IPKG_INSTROOT` is set during image builds -> post-install must skip service
@@ -78,6 +84,9 @@
 - YAML parse check for the release workflow and packaged config.
 - Release IPK assembly script syntax check and a smoke test that emits both
   `oxidns_*.ipk` and `luci-app-oxidns_*.ipk`.
+- The IPK smoke test must verify the outer archive with `tar -tzf` and confirm
+  the three top-level entries `./debian-binary`, `./data.tar.gz`, and
+  `./control.tar.gz` exist.
 - `oxidns check -c <packaged config> -d <existing temp dir>` must pass.
 - Release workflow changes should be reviewed for artifact names consumed by the
   publish job.

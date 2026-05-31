@@ -75,11 +75,12 @@ trap 'rm -rf "$tmp_root"' EXIT
 
 mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
+timestamp="@${SOURCE_DATE_EPOCH:-0}"
 
 if tar --version 2>/dev/null | grep -qi 'gnu tar'; then
-  tar_owner_args=(--owner=0 --group=0 --numeric-owner)
+  tar_args=(--format=gnu --numeric-owner --sort=name --mtime="$timestamp")
 else
-  tar_owner_args=(--uid 0 --gid 0 --uname root --gname root)
+  tar_args=(--format=gnutar --numeric-owner)
 fi
 
 installed_size_kb() {
@@ -94,16 +95,16 @@ write_archive() {
 
   (
     cd "$work_dir/control"
-    tar "${tar_owner_args[@]}" -czf "$work_dir/control.tar.gz" .
+    tar "${tar_args[@]}" -cf - . | gzip -n - > "$work_dir/control.tar.gz"
   )
   (
     cd "$work_dir/data"
-    tar "${tar_owner_args[@]}" -czf "$work_dir/data.tar.gz" .
+    tar "${tar_args[@]}" -cf - . | gzip -n - > "$work_dir/data.tar.gz"
   )
   printf '2.0\n' > "$work_dir/debian-binary"
   (
     cd "$work_dir"
-    ar rc "$output_file" debian-binary control.tar.gz data.tar.gz
+    tar "${tar_args[@]}" -cf - ./debian-binary ./data.tar.gz ./control.tar.gz | gzip -n - > "$output_file"
   )
   echo "$output_file"
 }
