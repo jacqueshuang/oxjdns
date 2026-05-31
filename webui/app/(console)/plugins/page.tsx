@@ -1,0 +1,315 @@
+"use client";
+
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { AppHeader } from "@/components/shell/app-header";
+import { PluginCard } from "@/components/plugins/plugin-card";
+import { CreatePluginDialog } from "@/components/plugins/create-plugin-dialog";
+import { PluginDeleteButton } from "@/components/plugins/plugin-delete-button";
+import { useAppStore } from "@/lib/store";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Search, LayoutGrid, List, Pin, PinOff, GitBranch } from "lucide-react";
+import type { PluginType } from "@/lib/types";
+import { PLUGIN_TYPE_LABELS } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  getPluginCatalogItem,
+  renderPluginKindIcon,
+} from "@/components/plugins/catalog";
+import {
+  pluginTypeColors,
+  pluginTypeIcons,
+} from "@/components/plugins/display";
+import { TopologyView } from "@/components/plugins/plugin-topology-view";
+
+export default function PluginsPage() {
+  return (
+    <Suspense fallback={<PluginsPageFallback />}>
+      <PluginsPageContent />
+    </Suspense>
+  );
+}
+
+function PluginsPageContent() {
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get("type") as PluginType | null;
+  const [activeTab, setActiveTab] = useState<PluginType | "all">(
+    initialType || "all",
+  );
+  const [viewMode, setViewMode] = useState<"grid" | "table" | "topology">(
+    "grid",
+  );
+  const [search, setSearch] = useState("");
+
+  const plugins = useAppStore((s) => s.plugins);
+  const dependencyGraph = useAppStore((s) => s.dependencyGraph);
+  const { setSelectedPlugin, setDetailOpen, togglePluginPin } = useAppStore();
+
+  const filteredPlugins = plugins.filter((p) => {
+    const definition = getPluginCatalogItem(p.pluginKind);
+    const normalizedSearch = search.toLowerCase();
+    const matchesType = activeTab === "all" || p.type === activeTab;
+    const matchesSearch =
+      p.name.toLowerCase().includes(normalizedSearch) ||
+      p.pluginKind.toLowerCase().includes(normalizedSearch) ||
+      (definition?.name.toLowerCase().includes(normalizedSearch) ?? false) ||
+      (definition?.description.toLowerCase().includes(normalizedSearch) ??
+        false);
+    return matchesType && matchesSearch;
+  });
+
+  const pluginsByType = {
+    server: plugins.filter((p) => p.type === "server"),
+    executor: plugins.filter((p) => p.type === "executor"),
+    matcher: plugins.filter((p) => p.type === "matcher"),
+    provider: plugins.filter((p) => p.type === "provider"),
+  };
+
+  const handleRowClick = (plugin: (typeof plugins)[0]) => {
+    setSelectedPlugin(plugin);
+    setDetailOpen(true);
+  };
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <AppHeader title="插件中心" />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as PluginType | "all")}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          {/* Fixed toolbar + tab headers */}
+          <div className="shrink-0 space-y-4 border-b px-6 pt-5 pb-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 flex-1 min-w-[200px] max-w-md">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="搜索插件名称或类型..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center border rounded-md">
+                  <Button
+                    variant={viewMode === "grid" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="rounded-r-none"
+                    onClick={() => setViewMode("grid")}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "table" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="rounded-l-none rounded-r-none"
+                    onClick={() => setViewMode("table")}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "topology" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="rounded-l-none"
+                    onClick={() => setViewMode("topology")}
+                  >
+                    <GitBranch className="h-4 w-4" />
+                  </Button>
+                </div>
+                <CreatePluginDialog
+                  defaultType={activeTab !== "all" ? activeTab : undefined}
+                />
+              </div>
+            </div>
+
+            {viewMode !== "topology" && (
+              // The category bar overflows narrow (mobile) viewports, so make
+              // it horizontally scrollable. -mx-6 px-6 lets the pills bleed to
+              // the screen edges while staying aligned with the toolbar inset;
+              // on desktop the list fits and nothing scrolls.
+              <div className="oxidns-no-scrollbar -mx-6 overflow-x-auto px-6">
+                <TabsList>
+                  <TabsTrigger value="all">
+                    全部
+                    <Badge variant="secondary" className="ml-1.5 text-xs">
+                      {plugins.length}
+                    </Badge>
+                  </TabsTrigger>
+                  {(Object.keys(pluginsByType) as PluginType[]).map((type) => (
+                    <TabsTrigger key={type} value={type} className="gap-1.5">
+                      {pluginTypeIcons[type]}
+                      {PLUGIN_TYPE_LABELS[type]}
+                      <Badge variant="secondary" className="ml-1 text-xs">
+                        {pluginsByType[type].length}
+                      </Badge>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
+            )}
+          </div>
+
+          {/* Scrollable content area */}
+          <div className="oxidns-dialog-scrollbar min-h-0 flex-1 overflow-auto">
+            <TabsContent value={activeTab} className="m-0 p-6">
+              {viewMode === "grid" ? (
+                <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredPlugins.map((plugin) => (
+                    <PluginCard key={plugin.id} plugin={plugin} />
+                  ))}
+                </div>
+              ) : viewMode === "table" ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>名称</TableHead>
+                        <TableHead>类型</TableHead>
+                        <TableHead>插件</TableHead>
+                        <TableHead className="w-[80px]" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPlugins.map((plugin) => (
+                        <TableRow
+                          key={plugin.id}
+                          className="group cursor-pointer"
+                          onClick={() => handleRowClick(plugin)}
+                        >
+                          <TableCell className="font-mono font-medium">
+                            <div className="flex items-center gap-2">
+                              {plugin.name}
+                              {plugin.pinned && (
+                                <Pin className="h-3 w-3 text-primary" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "gap-1",
+                                pluginTypeColors[plugin.type],
+                              )}
+                            >
+                              {pluginTypeIcons[plugin.type]}
+                              {PLUGIN_TYPE_LABELS[plugin.type]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <PluginKindBadge pluginKind={plugin.pluginKind} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      "h-7 w-7",
+                                      plugin.pinned && "text-primary",
+                                    )}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      togglePluginPin(plugin.id);
+                                    }}
+                                  >
+                                    {plugin.pinned ? (
+                                      <PinOff className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <Pin className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  {plugin.pinned ? "取消固定" : "固定到仪表盘"}
+                                </TooltipContent>
+                              </Tooltip>
+                              <PluginDeleteButton
+                                plugin={plugin}
+                                className="h-7 w-7 hover:text-destructive"
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <TopologyView
+                  plugins={plugins}
+                  dependencyGraph={dependencyGraph}
+                  onSelect={handleRowClick}
+                />
+              )}
+
+              {viewMode !== "topology" && filteredPlugins.length === 0 && (
+                <div className="border border-dashed rounded-lg p-12 text-center text-muted-foreground">
+                  <p>没有找到匹配的插件</p>
+                  {search && (
+                    <p className="text-sm mt-1">
+                      尝试调整搜索条件或
+                      <button
+                        onClick={() => setSearch("")}
+                        className="text-primary hover:underline ml-1"
+                      >
+                        清除搜索
+                      </button>
+                    </p>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
+
+function PluginsPageFallback() {
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <AppHeader title="插件中心" />
+      <main className="oxidns-dialog-scrollbar min-h-0 flex-1 overflow-auto p-6">
+        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
+          正在加载插件中心...
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function PluginKindBadge({ pluginKind }: { pluginKind: string }) {
+  const definition = getPluginCatalogItem(pluginKind);
+
+  return (
+    <Badge variant="outline" className="gap-1.5">
+      {definition &&
+        renderPluginKindIcon(definition.icon, { className: "h-3 w-3" })}
+      {definition?.name ?? pluginKind}
+    </Badge>
+  );
+}

@@ -1,0 +1,19 @@
+{
+	"luci-app-oxidns": {
+		"description": "Grant access to OxiDNS status and service controls",
+		"read": {
+			"file": {
+				"/usr/libexec/oxidns-openwrt": [ "exec" ],
+				"/etc/oxidns/config.yaml": [ "read" ],
+				"/etc/oxidns/initial_password": [ "read" ]
+			}
+		},
+		"write": {
+			"file": {
+				"/usr/libexec/oxidns-openwrt": [ "exec" ],
+				"/etc/oxidns/config.yaml": [ "write" ],
+				"/etc/oxidns/initial_password": [ "write" ]
+			}
+		}
+	}
+}

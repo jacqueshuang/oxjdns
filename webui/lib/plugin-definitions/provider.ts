@@ -1,0 +1,150 @@
+import type { PluginKindDefinition } from "./shared";
+import { stringArrayField } from "./shared";
+
+export const providerPluginDefinitions: PluginKindDefinition[] = [
+  {
+    kind: "domain_set",
+    type: "provider",
+    name: "Domain Set",
+    description: "高性能域名规则集合，可被 qname、cname 等引用",
+    icon: "List",
+    configSchema: [
+      stringArrayField(
+        "exps",
+        "内联域名规则",
+        "full:login.example.com\ndomain:example.com\nkeyword:cdn\nregexp:^api[0-9]+\\.example\\.net$",
+        false,
+        "定义内联域名表达式列表。",
+      ),
+      stringArrayField(
+        "files",
+        "域名规则文件",
+        "/etc/oxidns/domains.txt",
+        false,
+        "指定外部规则文件路径列表。",
+      ),
+      stringArrayField(
+        "sets",
+        "下游 Provider",
+        "shared_domains\nshared_geosite",
+        false,
+        "引用其它具备域名匹配能力的 provider。",
+        {
+          type: "reference",
+          label: "引用 provider",
+          referenceTypes: ["provider"],
+          referencePrefix: "",
+          placeholder: "shared_domains",
+        },
+      ),
+    ],
+  },
+  {
+    kind: "geosite",
+    type: "provider",
+    name: "Geosite",
+    description: "从 geosite.dat 提取域名规则集合",
+    icon: "Globe",
+    configSchema: [
+      {
+        key: "file",
+        description: "指定 geosite.dat 文件路径。",
+        label: "geosite.dat",
+        type: "text",
+        required: true,
+        placeholder: "/etc/oxidns/geosite.dat",
+      },
+      stringArrayField(
+        "selectors",
+        "Selector",
+        "cn\ngeolocation-!cn",
+        false,
+        "按 code 提取部分规则，也支持 code@attribute 语法按 attribute 进一步过滤。",
+      ),
+    ],
+  },
+  {
+    kind: "adguard_rule",
+    type: "provider",
+    name: "AdGuard Rule",
+    description: "提供 AdGuard Home DNS 规则子集",
+    icon: "Shield",
+    configSchema: [
+      stringArrayField(
+        "rules",
+        "内联规则",
+        "||ads.example.com^\n@@||safe.ads.example.com^",
+        false,
+        "提供 AdGuard Home DNS 规则子集。",
+      ),
+      stringArrayField(
+        "files",
+        "规则文件",
+        "/etc/oxidns/adguard.txt",
+        false,
+        "从外部规则文件加载。",
+      ),
+    ],
+  },
+  {
+    kind: "ip_set",
+    type: "provider",
+    name: "IP Set",
+    description: "IP / CIDR 规则集合，可被 client_ip、resp_ip、ptr_ip 引用",
+    icon: "MapPin",
+    configSchema: [
+      stringArrayField(
+        "ips",
+        "IP / CIDR",
+        "192.168.0.0/16\nfd00::/8",
+        false,
+        "定义内联 IP 或 CIDR 规则列表。",
+      ),
+      stringArrayField(
+        "files",
+        "IP 规则文件",
+        "/etc/oxidns/ips.txt",
+        false,
+        "指定外部 IP 规则文件路径列表。",
+      ),
+      stringArrayField(
+        "sets",
+        "下游 Provider",
+        "shared_ip_set\nshared_geoip",
+        false,
+        "引用其它 ip_set 实例。",
+        {
+          type: "reference",
+          label: "引用 provider",
+          referenceTypes: ["provider"],
+          referencePrefix: "",
+          placeholder: "shared_ip_set",
+        },
+      ),
+    ],
+  },
+  {
+    kind: "geoip",
+    type: "provider",
+    name: "GeoIP",
+    description: "从 geoip.dat 提取 IP / CIDR 集合",
+    icon: "Globe",
+    configSchema: [
+      {
+        key: "file",
+        description: "指定 geoip.dat 文件路径。",
+        label: "geoip.dat",
+        type: "text",
+        required: true,
+        placeholder: "/etc/oxidns/geoip.dat",
+      },
+      stringArrayField(
+        "selectors",
+        "Selector",
+        "cn",
+        false,
+        "按 code 提取 IP / CIDR 集合。",
+      ),
+    ],
+  },
+];

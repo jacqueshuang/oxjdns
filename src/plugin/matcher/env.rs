@@ -1,0 +1,157 @@
+// SPDX-FileCopyrightText: 2025 Sven Shi
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+//! `env` matcher plugin.
+//!
+//! Matches startup/runtime environment variables.
+
+use std::fmt::Debug;
+
+use async_trait::async_trait;
+
+use crate::config::types::PluginConfig;
+use crate::core::context::DnsContext;
+use crate::core::env;
+use crate::core::error::{DnsError, Result as DnsResult};
+use crate::plugin::matcher::Matcher;
+use crate::plugin::matcher::matcher_utils::{parse_quick_setup_rules, parse_rules_from_value};
+use crate::plugin::{Plugin, PluginFactory, UninitializedPlugin};
+use crate::plugin_factory;
+
+#[derive(Debug, Clone)]
+#[plugin_factory("env")]
+pub struct EnvFactory {}
+
+impl PluginFactory for EnvFactory {
+    fn create(
+        &self,
+        plugin_config: &PluginConfig,
+        _init_context: &crate::plugin::PluginInitContext<'_>,
+    ) -> DnsResult<UninitializedPlugin> {
+        let args = parse_rules_from_value(plugin_config.args.clone())?;
+        let (key, value) = parse_env_args(args)?;
+        Ok(UninitializedPlugin::Matcher(Box::new(EnvMatcher {
+            tag: plugin_config.tag.clone(),
+            key,
+            value,
+            cached_exists: false,
+            cached_value: None,
+        })))
+    }
+
+    fn quick_setup(&self, tag: &str, param: Option<String>) -> DnsResult<UninitializedPlugin> {
+        let args = parse_quick_setup_rules(param)?;
+        let (key, value) = parse_env_args(args)?;
+        Ok(UninitializedPlugin::Matcher(Box::new(EnvMatcher {
+            tag: tag.to_string(),
+            key,
+            value,
+            cached_exists: false,
+            cached_value: None,
+        })))
+    }
+}
+
+fn parse_env_args(args: Vec<String>) -> DnsResult<(String, Option<String>)> {
+    if args.is_empty() {
+        return Err(DnsError::plugin("env matcher requires env key"));
+    }
+    if args.len() > 2 {
+        return Err(DnsError::plugin(
+            "env matcher accepts only env key and optional value",
+        ));
+    }
+
+    let key = args[0].trim().to_string();
+    if key.is_empty() {
+        return Err(DnsError::plugin("env key cannot be empty"));
+    }
+    let value = args.get(1).map(|v| v.trim().to_string());
+    Ok((key, value))
+}
+
+#[derive(Debug)]
+struct EnvMatcher {
+    tag: String,
+    key: String,
+    value: Option<String>,
+    cached_exists: bool,
+    cached_value: Option<String>,
+}
+
+#[async_trait]
+impl Plugin for EnvMatcher {
+    fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    async fn init(&mut self, _context: &crate::plugin::PluginInitContext<'_>) -> DnsResult<()> {
+        let raw = env::var_os(&self.key);
+        self.cached_exists = raw.is_some();
+        self.cached_value = raw.map(|v| v.to_string_lossy().into_owned());
+        Ok(())
+    }
+
+    async fn destroy(&self) -> DnsResult<()> {
+        Ok(())
+    }
+}
+
+impl Matcher for EnvMatcher {
+    #[hotpath::measure]
+    fn is_match(&self, _context: &mut DnsContext) -> bool {
+        if !self.cached_exists {
+            return false;
+        }
+
+        if let Some(expect) = &self.value {
+            self.cached_value.as_deref() == Some(expect.as_str())
+        } else {
+            true
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::plugin::test_utils::test_context;
+
+    #[test]
+    fn test_parse_env_args_validation() {
+        assert!(parse_env_args(vec![]).is_err());
+        assert!(parse_env_args(vec![" ".to_string()]).is_err());
+        assert!(parse_env_args(vec!["KEY".to_string()]).is_ok());
+    }
+
+    #[test]
+    fn test_env_matcher_uses_cached_state() {
+        let mut ctx = test_context();
+        let exists_matcher = EnvMatcher {
+            tag: "env".to_string(),
+            key: "K".to_string(),
+            value: None,
+            cached_exists: true,
+            cached_value: Some("v".to_string()),
+        };
+        assert!(exists_matcher.is_match(&mut ctx));
+
+        let value_matcher = EnvMatcher {
+            tag: "env".to_string(),
+            key: "K".to_string(),
+            value: Some("v".to_string()),
+            cached_exists: true,
+            cached_value: Some("v".to_string()),
+        };
+        assert!(value_matcher.is_match(&mut ctx));
+
+        let miss_matcher = EnvMatcher {
+            tag: "env".to_string(),
+            key: "K".to_string(),
+            value: Some("x".to_string()),
+            cached_exists: true,
+            cached_value: Some("v".to_string()),
+        };
+        assert!(!miss_matcher.is_match(&mut ctx));
+    }
+}

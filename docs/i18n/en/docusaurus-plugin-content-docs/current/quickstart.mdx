@@ -1,0 +1,554 @@
+---
+title: Quick Start
+sidebar_position: 2
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+This page describes the OxiDNS installation paths and the shortest path from download to first successful start.
+
+<Admonition type="tip" title="Which install path should I choose?">
+
+* **Linux servers**: the one-command installer, release archives, or `.deb` packages
+* **OpenWrt / iStoreOS**: use the `.ipk` packages from GitHub Releases
+* **Containerized environments**: the GHCR Docker image
+* **Local development or debugging**: build from source with Cargo
+* **macOS / Windows**: the one-command installer or release archives
+
+</Admonition>
+
+## 1. One-Command Install
+
+The installer detects the current platform, downloads the matching GitHub Release archive, extracts `oxidns` / `oxidns.exe`, `config.yaml`, and `webui/`, then installs and starts OxiDNS as a system service by default.
+
+<Tabs groupId="os">
+  <TabItem value="unix" label="Linux / macOS" default>
+
+```bash
+curl -fsSL https://oxidns.org/install.sh | sudo sh
+```
+
+  </TabItem>
+  <TabItem value="windows" label="Windows">
+
+```powershell
+irm https://oxidns.org/install.ps1 | iex
+```
+
+  </TabItem>
+</Tabs>
+
+Default install locations:
+
+| Platform | Default install directory | PATH behavior |
+| --- | --- | --- |
+| Linux / macOS service install with `sudo` | `/opt/oxidns` | Creates `/usr/local/bin/oxidns`, then installs and starts the system service |
+| Windows service install from elevated PowerShell | `%ProgramFiles%\OxiDNS` | Adds the install directory to the Machine PATH, then installs and starts the service |
+| Linux / macOS portable install | `~/.oxidns` | Set `OXIDNS_INSTALL_SERVICE=0`; creates `~/.local/bin/oxidns` |
+| Windows portable install | `%LOCALAPPDATA%\OxiDNS` | Set `OXIDNS_INSTALL_SERVICE=0`; adds the install directory to the user PATH |
+
+Running the installer again updates the binary and `webui/`. If `config.yaml` already exists in the install directory, the installer keeps it and writes the release default config as `config.yaml.example`.
+
+### Install A Specific Version
+
+<Tabs groupId="os">
+  <TabItem value="unix" label="Linux / macOS" default>
+
+```bash
+curl -fsSL https://oxidns.org/install.sh | sudo env OXIDNS_VERSION=v1.0.1 sh
+```
+
+  </TabItem>
+  <TabItem value="windows" label="Windows">
+
+```powershell
+$env:OXIDNS_VERSION = "v1.0.1"; irm https://oxidns.org/install.ps1 | iex
+```
+
+  </TabItem>
+</Tabs>
+
+Common environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `OXIDNS_VERSION` | Release tag, defaults to `latest` |
+| `OXIDNS_INSTALL_DIR` | Override the install directory |
+| `OXIDNS_BIN_DIR` | Override the command-link directory on Linux / macOS |
+| `OXIDNS_TARGET` | Override the release target, for example `x86_64-unknown-linux-musl` |
+| `OXIDNS_NO_PATH=1` | Do not create a command link or update PATH |
+| `OXIDNS_INSTALL_SERVICE=0` | Skip system service installation and use portable install mode |
+| `OXIDNS_START_SERVICE=0` | Install the service but do not start it immediately |
+
+Portable install:
+
+<Tabs groupId="os">
+  <TabItem value="unix" label="Linux / macOS" default>
+
+```bash
+curl -fsSL https://oxidns.org/install.sh | env OXIDNS_INSTALL_SERVICE=0 sh
+```
+
+  </TabItem>
+  <TabItem value="windows" label="Windows">
+
+```powershell
+$env:OXIDNS_INSTALL_SERVICE = "0"; irm https://oxidns.org/install.ps1 | iex
+```
+
+  </TabItem>
+</Tabs>
+
+After a portable install, start OxiDNS with:
+
+<Tabs groupId="os">
+  <TabItem value="unix" label="Linux / macOS" default>
+
+```bash
+oxidns start -c ~/.oxidns/config.yaml -d ~/.oxidns
+```
+
+  </TabItem>
+  <TabItem value="windows" label="Windows">
+
+```powershell
+oxidns.exe start -c "$env:LOCALAPPDATA\OxiDNS\config.yaml" -d "$env:LOCALAPPDATA\OxiDNS"
+```
+
+  </TabItem>
+</Tabs>
+
+<Admonition type="note" title="Port permissions">
+
+The default config includes a `:53` listener. On Linux / macOS, portable installs run by regular users usually cannot bind port 53; for local evaluation, remove `udp_server_53` first or use the default system service install.
+
+</Admonition>
+
+### Uninstall
+
+The uninstall script removes the binary, `webui/`, and PATH entry while keeping `config.yaml` by default.
+
+<Tabs groupId="os">
+  <TabItem value="unix" label="Linux / macOS" default>
+
+```bash
+curl -fsSL https://oxidns.org/uninstall.sh | sudo sh
+```
+
+  </TabItem>
+  <TabItem value="windows" label="Windows">
+
+```powershell
+irm https://oxidns.org/uninstall.ps1 | iex
+```
+
+  </TabItem>
+</Tabs>
+
+If you installed with `sudo` or a custom `OXIDNS_INSTALL_DIR`, use the same privilege level and directory variable when uninstalling.
+
+Remove the install directory and config too:
+
+<Tabs groupId="os">
+  <TabItem value="unix" label="Linux / macOS" default>
+
+```bash
+curl -fsSL https://oxidns.org/uninstall.sh | sudo env OXIDNS_PURGE=1 sh
+```
+
+  </TabItem>
+  <TabItem value="windows" label="Windows">
+
+```powershell
+$env:OXIDNS_PURGE = "1"; irm https://oxidns.org/uninstall.ps1 | iex
+```
+
+  </TabItem>
+</Tabs>
+
+<Admonition type="warning" title="Purge removes configuration">
+
+Setting `OXIDNS_PURGE=1` deletes the entire install directory, including the configuration file. Back up `config.yaml` before running it.
+
+</Admonition>
+
+Common uninstall variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `OXIDNS_INSTALL_DIR` | Override the uninstall target; keep it aligned with the install command |
+| `OXIDNS_BIN_DIR` | Override the command-link directory on Linux / macOS |
+| `OXIDNS_NO_PATH=1` | Do not remove the command link or user PATH entry |
+| `OXIDNS_UNINSTALL_SERVICE=1` | Force operating-system service uninstall; by default this is attempted automatically as root / administrator |
+| `OXIDNS_PURGE=1` | Remove the full install directory, including config |
+
+## 2. OpenWrt / iStoreOS Native Packages
+
+OxiDNS GitHub Releases include OpenWrt/iStoreOS 24.10 `.ipk` packages for:
+
+- `x86_64`
+- `aarch64_cortex-a53`, targeting common iStoreOS arm64 devices
+
+Download both packages for the same architecture:
+
+- `oxidns-openwrt-24.10.*-<arch>-oxidns_*.ipk`
+- `oxidns-openwrt-24.10.*-<arch>-luci-app-oxidns_*.ipk`
+
+Install them with:
+
+```sh
+opkg update
+opkg install ./oxidns-openwrt-24.10.*-<arch>-oxidns_*.ipk \
+  ./oxidns-openwrt-24.10.*-<arch>-luci-app-oxidns_*.ipk
+```
+
+After installation, the package:
+
+- Generates a random WebUI/API password for username `admin`
+- Enables and starts `/etc/init.d/oxidns`
+- Runs OxiDNS under OpenWrt `procd`
+
+Default paths and ports:
+
+| Item | Default |
+| --- | --- |
+| Config file | `/etc/oxidns/config.yaml` |
+| Initial password | `/etc/oxidns/initial_password` |
+| Working directory | `/var/lib/oxidns` |
+| WebUI assets | `/usr/share/oxidns/webui` |
+| DNS UDP/TCP | `:5335` |
+| WebUI/API | `0.0.0.0:9199` |
+
+Print the generated password:
+
+```sh
+/etc/init.d/oxidns show_password
+```
+
+Service controls:
+
+```sh
+/etc/init.d/oxidns status
+/etc/init.d/oxidns restart
+/etc/init.d/oxidns reset_password
+```
+
+In LuCI / iStoreOS, open **Services → OxiDNS** to view status, start/stop/restart the service, display or reset the password, and open the bundled OxiDNS WebUI.
+
+LAN access:
+
+```text
+http://router-ip:9199/
+```
+
+<Admonition type="warning" title="Management port security">
+
+The OpenWrt / iStoreOS package listens on port `9199` for LAN access and enables Basic Auth by default. Do not expose this port directly to the public internet. For remote access, use a VPN, reverse-proxy authentication, or firewall allowlists.
+
+</Admonition>
+
+Uninstall:
+
+```sh
+opkg remove luci-app-oxidns oxidns
+```
+
+`/etc/oxidns/config.yaml` and `/etc/oxidns/initial_password` are config files and are kept where possible during upgrades or package removal. Delete `/etc/oxidns` and `/var/lib/oxidns` manually when you want a full purge.
+
+### Build With The OpenWrt SDK
+
+Inside an OpenWrt SDK or buildroot:
+
+```sh
+./scripts/feeds update packages luci
+./scripts/feeds install rust ca-bundle luci-base rpcd
+cp -R /path/to/oxidns/packaging/openwrt/oxidns package/oxidns
+make menuconfig
+```
+
+Select:
+
+- `Network -> oxidns`
+- `LuCI -> Applications -> luci-app-oxidns`
+
+For source builds, prepare `webui/out` first or pass `OXIDNS_WEBUI_DIR` to `make`. For a prebuilt binary package build:
+
+```sh
+make package/oxidns/compile V=s \
+  OXIDNS_PREBUILT_BINARY=/absolute/path/to/oxidns \
+  OXIDNS_WEBUI_DIR=/absolute/path/to/webui
+```
+
+## 3. Build From Source
+
+This path is suitable for debugging, code changes, or cases where packaged builds are not used.
+
+Requirements:
+
+- A stable Rust toolchain
+- A working Cargo build environment
+
+Build and run:
+
+```bash
+git clone https://github.com/svenshi/oxidns.git
+cd oxidns
+
+cargo build --release
+./target/release/oxidns check -c config.yaml
+./target/release/oxidns start -c config.yaml
+```
+
+Run with debug logging:
+
+```bash
+cargo run -- check -c config.yaml
+cargo run -- start -c config.yaml -l debug
+```
+
+## 4. Install From GitHub Release Archives
+
+The release workflow generates standalone binaries for multiple platforms. Each archive includes:
+
+- `oxidns` or `oxidns.exe`
+- `config.yaml`
+- `LICENSE`
+- `webui/`
+
+Release page:
+
+- [https://github.com/svenshi/oxidns/releases](https://github.com/svenshi/oxidns/releases)
+
+### Supported Archive Targets
+
+Non-Windows targets use `.tar.gz`:
+
+- `oxidns-x86_64-unknown-linux-gnu.tar.gz`
+- `oxidns-x86_64-unknown-linux-musl.tar.gz`
+- `oxidns-aarch64-unknown-linux-gnu.tar.gz`
+- `oxidns-aarch64-unknown-linux-musl.tar.gz`
+- `oxidns-i686-unknown-linux-musl.tar.gz`
+- `oxidns-arm-unknown-linux-musleabihf.tar.gz`
+- `oxidns-x86_64-apple-darwin.tar.gz`
+- `oxidns-aarch64-apple-darwin.tar.gz`
+- `oxidns-x86_64-unknown-freebsd.tar.gz`
+
+Windows targets use `.zip`:
+
+- `oxidns-x86_64-pc-windows-msvc.zip`
+- `oxidns-i686-pc-windows-msvc.zip`
+- `oxidns-aarch64-pc-windows-msvc.zip`
+
+### How To Choose The Right Release Asset
+
+When the correct asset is unclear, use this mapping:
+
+| System / Environment | Recommended release asset | Notes |
+| --- | --- | --- |
+| Linux x86_64 | `oxidns-x86_64-unknown-linux-musl.tar.gz` | Safer default for broad compatibility |
+| Linux ARM64 | `oxidns-aarch64-unknown-linux-musl.tar.gz` | Safer default for broad compatibility |
+| Debian / Ubuntu x86_64 service install | `*_amd64.deb` | Best fit for systemd-based deployment |
+| Debian / Ubuntu ARM64 service install | `*_arm64.deb` | Best fit for systemd-based deployment |
+| Alpine Linux x86_64 | `oxidns-x86_64-unknown-linux-musl.tar.gz` | Prefer musl on Alpine |
+| Alpine Linux ARM64 | `oxidns-aarch64-unknown-linux-musl.tar.gz` | Static-friendly build |
+| Confirmed glibc Linux requiring a dynamic build | `oxidns-x86_64-unknown-linux-gnu.tar.gz` / `oxidns-aarch64-unknown-linux-gnu.tar.gz` | Only choose this when the target environment is clearly compatible |
+| 32-bit ARM Linux | `oxidns-arm-unknown-linux-musleabihf.tar.gz` | Fits some Raspberry Pi and older ARM boards |
+| macOS Intel | `oxidns-x86_64-apple-darwin.tar.gz` | Intel Macs |
+| macOS Apple Silicon | `oxidns-aarch64-apple-darwin.tar.gz` | M1 / M2 / M3 / M4 Macs |
+| Windows x64 | `oxidns-x86_64-pc-windows-msvc.zip` | Most PCs |
+| Windows 32-bit | `oxidns-i686-pc-windows-msvc.zip` | Only for 32-bit Windows |
+| Windows ARM64 | `oxidns-aarch64-pc-windows-msvc.zip` | ARM-based Windows devices |
+| FreeBSD x86_64 | `oxidns-x86_64-unknown-freebsd.tar.gz` | FreeBSD hosts |
+
+To verify the platform first, run:
+
+```bash
+uname -s
+uname -m
+```
+
+Common output mapping:
+
+- `Linux` + `x86_64`: default to `x86_64-unknown-linux-musl`; use `x86_64-unknown-linux-gnu` only when a glibc dynamic build is explicitly required
+- `Linux` + `aarch64`: default to `aarch64-unknown-linux-musl`; use `aarch64-unknown-linux-gnu` only when a glibc dynamic build is explicitly required
+- `Linux` + `armv7l`: use `arm-unknown-linux-musleabihf`
+- `Darwin` + `x86_64`: use `x86_64-apple-darwin`
+- `Darwin` + `arm64`: use `aarch64-apple-darwin`
+
+On Windows PowerShell, run:
+
+```powershell
+(Get-CimInstance Win32_OperatingSystem).OSArchitecture
+```
+
+Map `X64`, `Arm64`, and `X86` to the `x86_64`, `aarch64`, and `i686` Windows assets respectively.
+
+### Linux / macOS Example
+
+Replace `TAG` below with the actual release tag, for example `v0.1.0`. The Linux example below uses `x86_64-unknown-linux-musl` as the default choice:
+
+```bash
+curl -L -o oxidns.tar.gz \
+  https://github.com/svenshi/oxidns/releases/download/TAG/oxidns-x86_64-unknown-linux-musl.tar.gz
+
+mkdir -p oxidns
+tar -xzf oxidns.tar.gz -C oxidns
+cd oxidns
+
+chmod +x oxidns
+./oxidns check -c config.yaml
+./oxidns start -c config.yaml
+```
+
+When the target machine's glibc compatibility is unclear, or when running Alpine Linux, prefer a `*-linux-musl` archive instead of defaulting to `gnu`.
+
+### Windows Example
+
+Download the matching `.zip`, extract it, then run:
+
+```powershell
+.\oxidns.exe start -c .\config.yaml
+```
+
+## 5. Install From Debian Packages
+
+The release workflow currently builds `.deb` packages for:
+
+- `x86_64-unknown-linux-gnu`
+- `aarch64-unknown-linux-gnu`
+
+Install on Debian / Ubuntu:
+
+```bash
+sudo dpkg -i oxidns_*_amd64.deb
+```
+
+Or on ARM64 Debian / Ubuntu:
+
+```bash
+sudo dpkg -i oxidns_*_arm64.deb
+```
+
+Default installed paths:
+
+- Binary: `/usr/bin/oxidns`
+- Config: `/etc/oxidns/config.yaml`
+- Runtime-relative path base: `/var/lib/oxidns`
+- WebUI: `/var/lib/oxidns/webui` symlinked to `/usr/share/oxidns/webui`
+
+The project also ships systemd packaging metadata, so Debian-family systems are a good fit for service-based deployment. The default service explicitly passes `ExecStart ... -d /var/lib/oxidns` as the runtime-relative path base.
+
+After changing the default config, validate it before starting the service:
+
+```bash
+oxidns check -c /etc/oxidns/config.yaml -d /var/lib/oxidns
+```
+
+Verify service status:
+
+```bash
+sudo systemctl status oxidns
+```
+
+If the service is not running yet:
+
+```bash
+sudo systemctl enable --now oxidns
+```
+
+## 6. Run With Docker
+
+The repository publishes a GHCR image at:
+
+#### GitHub
+- `ghcr.io/svenshi/oxidns`
+#### Docker Hub
+- `svenshi/oxidns`
+
+The Docker workflow builds:
+
+- `linux/amd64`
+- `linux/arm64`
+
+Pull and run:
+
+```bash
+docker pull svenshi/oxidns:latest
+
+docker run -d \
+  --name oxidns \
+  --restart unless-stopped \
+  -p 53:53/udp \
+  -p 53:53/tcp \
+  -p 9199:9199/tcp \
+  -v "$(pwd)/config.yaml:/etc/oxidns/config.yaml:ro" \
+  svenshi/oxidns:latest
+```
+
+<Admonition type="note" title="Port binding">
+
+On Linux, port 53 is privileged. Regular users usually get the needed permission through the Docker daemon. Portable non-root installs should use `:5353`.
+
+</Admonition>
+
+When the default-branch image is published, the `latest` tag is also available.
+
+The image entrypoint effectively runs:
+
+```bash
+oxidns start -c /etc/oxidns/config.yaml -d /etc/oxidns
+```
+
+The container exposes:
+
+- `53/udp`
+- `53/tcp`
+- `9199/tcp`
+
+### Docker Compose Example
+
+For Compose-based port mapping and config management, use this `docker-compose.yml`:
+
+```yaml
+services:
+  oxidns:
+    image: svenshi/oxidns:latest
+    container_name: oxidns
+    restart: unless-stopped
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "9199:9199/tcp"
+    volumes:
+      - ./config.yaml:/etc/oxidns/config.yaml:ro
+```
+
+Start it with:
+
+```bash
+docker compose up -d
+```
+
+Follow logs with:
+
+```bash
+docker compose logs -f oxidns
+```
+
+## 7. Selection Guide
+
+- Fastest evaluation path: use the one-command installer for the latest release, or download a release archive manually
+- Long-running Linux service: prefer the Debian package
+- OpenWrt / iStoreOS installs: use the `.ipk` service package and `luci-app-oxidns`
+- Container platforms: use the GHCR Docker or Docker Hub image
+- Development or custom builds: compile from source
+
+## 8. Next Reading
+
+After the first successful start, continue with:
+
+1. [Configuration Overview](configuration.md)
+2. [Plugin Overview](plugin-reference/overview.md)
+3. [Common Scenarios](scenarios.md)

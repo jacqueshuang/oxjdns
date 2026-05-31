@@ -1,0 +1,163 @@
+#!/bin/sh
+
+CONFIG=${OXIDNS_CONFIG:-/etc/oxidns/config.yaml}
+PASSWORD_FILE=${OXIDNS_PASSWORD_FILE:-/etc/oxidns/initial_password}
+SERVICE=/etc/init.d/oxidns
+WORKDIR=${OXIDNS_WORKDIR:-/var/lib/oxidns}
+PLACEHOLDER=__OXIDNS_GENERATE_ON_INSTALL__
+
+umask 077
+
+fail() {
+	echo "oxidns-openwrt: $*" >&2
+	exit 1
+}
+
+generate_password() {
+	if [ -r /dev/urandom ]; then
+		LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 24
+	else
+		date +%s | sha256sum | cut -c 1-24
+	fi
+}
+
+read_config_password() {
+	[ -f "$CONFIG" ] || return 1
+	awk -F: '
+		/^[[:space:]]*password:[[:space:]]*/ {
+			sub(/^[[:space:]]*password:[[:space:]]*/, "", $0)
+			gsub(/^["'\'']|["'\'']$/, "", $0)
+			print $0
+			exit
+		}
+	' "$CONFIG"
+}
+
+write_password_file() {
+	local password="$1"
+
+	mkdir -p "$(dirname "$PASSWORD_FILE")"
+	printf '%s\n' "$password" > "$PASSWORD_FILE"
+	chmod 600 "$PASSWORD_FILE"
+}
+
+json_escape() {
+	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+replace_config_password() {
+	local password="$1"
+	local tmp
+
+	[ -f "$CONFIG" ] || fail "config not found: $CONFIG"
+	grep -q '^[[:space:]]*password:[[:space:]]*' "$CONFIG" || \
+		fail "api.http.auth.basic.password not found in $CONFIG"
+
+	tmp="${CONFIG}.tmp.$$"
+	sed "s|^\([[:space:]]*password:[[:space:]]*\).*$|\1\"${password}\"|" "$CONFIG" > "$tmp" || {
+		rm -f "$tmp"
+		fail "failed to update $CONFIG"
+	}
+
+	cat "$tmp" > "$CONFIG"
+	rm -f "$tmp"
+	chmod 600 "$CONFIG"
+}
+
+init_config() {
+	mkdir -p "$(dirname "$CONFIG")" "$WORKDIR"
+
+	[ -f "$CONFIG" ] || fail "config not found: $CONFIG"
+
+	if grep -q "$PLACEHOLDER" "$CONFIG"; then
+		reset_password "no-restart"
+		return 0
+	fi
+
+	if [ ! -s "$PASSWORD_FILE" ]; then
+		local password
+		password="$(read_config_password)"
+		[ -n "$password" ] && write_password_file "$password"
+	fi
+}
+
+show_password() {
+	if [ -s "$PASSWORD_FILE" ]; then
+		cat "$PASSWORD_FILE"
+		return 0
+	fi
+
+	read_config_password
+}
+
+reset_password() {
+	local mode="$1"
+	local password
+
+	password="$(generate_password)"
+	[ -n "$password" ] || fail "failed to generate password"
+
+	replace_config_password "$password"
+	write_password_file "$password"
+
+	if [ "$mode" != "no-restart" ] && pidof oxidns >/dev/null 2>&1; then
+		"$SERVICE" restart >/dev/null 2>&1 || true
+	fi
+
+	printf '%s\n' "$password"
+}
+
+service_running() {
+	pidof oxidns >/dev/null 2>&1
+}
+
+service_enabled() {
+	"$SERVICE" enabled >/dev/null 2>&1
+}
+
+status_json() {
+	local running=false
+	local enabled=false
+	local password
+	local escaped_password
+
+	service_running && running=true
+	service_enabled && enabled=true
+	password="$(show_password 2>/dev/null)"
+	escaped_password="$(json_escape "$password")"
+
+	printf '{"running":%s,"enabled":%s,"username":"admin","password":"%s"}\n' \
+		"$running" "$enabled" "$escaped_password"
+}
+
+case "$1" in
+	init-config)
+		init_config
+		;;
+	show-password)
+		show_password
+		;;
+	reset-password)
+		reset_password
+		;;
+	status)
+		status_json
+		;;
+	start)
+		"$SERVICE" enable >/dev/null 2>&1 || true
+		"$SERVICE" start >/dev/null 2>&1 || true
+		status_json
+		;;
+	stop)
+		"$SERVICE" stop >/dev/null 2>&1 || true
+		status_json
+		;;
+	restart)
+		"$SERVICE" restart >/dev/null 2>&1 || true
+		status_json
+		;;
+	*)
+		echo "Usage: $0 {init-config|show-password|reset-password|status|start|stop|restart}" >&2
+		exit 2
+		;;
+esac

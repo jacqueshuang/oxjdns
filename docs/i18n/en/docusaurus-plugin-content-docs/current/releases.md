@@ -1,0 +1,487 @@
+---
+title: Release Notes
+sidebar_position: 4
+---
+
+import ReleaseCard from '@site/src/components/ReleaseCard';
+
+# Release Notes
+
+## 2026-05
+
+<div className="release-stack">
+   <ReleaseCard version="v1.1.4" badge="Patch Release" date="2026-05-30" defaultOpen>
+       **Release Scope**
+
+       - Patch Release reducing memory footprint and reload cost on the provider and rule-matching paths, plus WebUI fixes for mobile config-editor and plugin-filter usability, query-recorder chart labels, and self-hosting the Monaco editor. Also adds a "Migrate from mosdns" guide. This release introduces no breaking configuration changes and leaves the query hot path unchanged.
+
+       **Changes**
+
+       - The `client_ip` / `resp_ip` / `ptr_ip` inline IP matchers now compile via `finalize_compact`, so compiled matchers no longer retain a duplicate copy of the source IP ranges (`ip_set` / `geoip` already did this).
+       - `finalize_compact` now moves the merged IPv6 ranges into the compiled matcher instead of cloning them.
+       - `geoip` feeds CIDR bytes straight into the matcher via `add_v4_network` / `add_v6_network`, skipping the per-entry `String` format + reparse round trip and speeding up load and reload.
+       - `adguard_rule` `badfilter` resolution uses a HashSet built once instead of an O(n²) rescan that reallocated the cache key on every comparison.
+       - Fixed the WebUI config editor and plugin filters being unusable on mobile.
+       - Fixed Top-N labels being truncated in the WebUI query-recorder charts.
+       - The WebUI Monaco editor is now self-hosted instead of loaded from the jsdelivr CDN, working in offline or restricted-network environments.
+       - Docs: added a "Migrate from mosdns" guide.
+
+       **Compatibility and Upgrade Notes**
+
+       - Root crate version bumped to `1.1.4`; no `crates/` workspace crate changed, so none need a version bump; release tag should use `v1.1.4`.
+       - `v1.1.3` configs upgrade directly to `v1.1.4` with no new required fields.
+       - The provider / matcher optimizations are internal implementation changes; they do not alter matching semantics or the query hot path and require no config changes.
+       - Deployments using the WebUI config editor in restricted or offline networks benefit from the self-hosted Monaco editor and no longer need external CDN access.
+   </ReleaseCard>
+
+   <ReleaseCard version="v1.1.3" badge="Patch Release" date="2026-05-27">
+       **Release Scope**
+
+       - Patch Release fixing a Linux `nftset` interval-set ADD/DEL that was rejected by real kernels with EINVAL, an `ipset` byte-order bug in `hashsize` / `maxelem`, and a WebUI `query_recorder` tabs overflow. Also adds an upfront notice on the `black_hole` plugin documentation describing an upcoming behavior redesign. This release does not introduce breaking configuration changes.
+
+       **Changes**
+
+       - Fixed `nftset` ADD / DEL / TEST encoding on interval sets: ADD / DEL now send the two-element list form `nft` userspace uses, resolving the EINVAL rejection observed on real kernels (issue #127); TEST sends only the start key and lets the kernel's interval tree resolve containment. Also fixed the per-element timeout byte order and relaxed dump parsing to tolerate unpaired `INTERVAL_END` anchors.
+       - Fixed `ipset` create writing `hashsize` / `maxelem` in native byte order: on little-endian hosts the kernel would read `hashsize=2048` as `524288`. Also removed the stray `IPSET_ATTR_LINENO=0` nested attribute, aligning with libipset.
+       - Significantly expanded `ripset` wire-format unit and ipset integration test coverage.
+       - Fixed a vertical overflow in the WebUI `query_recorder` detail panel tabs list.
+       - Docs: added a prominent notice to the `black_hole` executor section announcing the upcoming `mode` field (`nxdomain` / `nodata` / `null` / `custom` / `refused`) that will cover every qtype, and explaining the motivation; current behavior is unchanged.
+
+       **Compatibility and Upgrade Notes**
+
+       - Root crate version bumped to `1.1.3`; `oxidns-ripset` bumped to `0.1.2`; release tag should use `v1.1.3`.
+       - `v1.1.2` configs upgrade directly to `v1.1.3` with no new required fields.
+       - Linux deployments using the `nftset` plugin against `flags interval` sets should upgrade promptly; without this fix, ADD / DEL is rejected by real kernels with EINVAL.
+       - Linux deployments that let OxiDNS create `ipset` sets with explicit `hashsize` / `maxelem` should upgrade; sets pre-created by the external `ipset` CLI are unaffected by this fix.
+       - `black_hole` behavior is unchanged in this release, but the upcoming semantic redesign is worth tracking. For domain-level blocking today, prefer configuring both IPv4 and IPv6 fallback addresses (e.g. `black_hole 0.0.0.0 :: short_circuit`) or use `reject 3`.
+   </ReleaseCard>
+
+   <ReleaseCard version="v1.1.2" badge="Patch Release" date="2026-05-27">
+       **Release Scope**
+
+       - Patch Release fixing a Linux `nftset` write failure on `flags interval` sets, repairing the Windows service installer, and polishing systemd working-directory semantics, the WebUI run log viewer, and `query_recorder` ranking views. This release does not introduce breaking configuration changes.
+
+       **Changes**
+
+       - Fixed `nftset` decoding set flags with native byte order, which left `is_interval` always false on little-endian hosts and caused every CIDR add against a `flags interval` set to fail with `Unsupported entry for set type`. Flags are now decoded as big-endian, with a byte-order regression test.
+       - The `nftset` writer now processes each prefix independently, treats `IpSetError::ElementExists` as a skipped no-op, and aggregates ok / skipped / failed counts into a structured warn log instead of disabling the plugin on a single EEXIST.
+       - Fixed the packaged Debian `systemd` unit failing pre-start because of an unwritable `WorkingDirectory`; runtime-relative paths (including WebUI assets) now use `-d/--working-dir` as the single base.
+       - Fixed Windows install/uninstall scripts: reworked service management, binary path handling, and uninstall ordering to avoid orphaned processes or stale paths.
+       - WebUI run log viewer adds a wrap toggle, and `LogEntry.timestamp` now carries millisecond precision so the UI can show local `HH:MM:SS.mmm` alongside the existing `T+elapsed` column for easier correlation with external timelines.
+       - WebUI JSON responses and `query_recorder` SSE streams now tolerate non-JSON errors, heartbeat frames, empty payloads, and malformed events, so transient network hiccups no longer surface console errors.
+       - `query_recorder` removes the fixed 200-row cap on top-client, top-qname, and slow-query stats endpoints; the WebUI rankings and slow-query list gain a “load more” control to navigate larger result sets.
+       - WebUI plugin field documentation is resynced with the Rust plugin configuration.
+       - Documentation site adds a Hero component, refreshes installation steps and the Docker run command, and adds multi-platform quickstart guidance; also documents the Debian `/etc/oxidns` and `/var/lib/oxidns` layout, WebUI symlink behavior, and `client_ip` troubleshooting.
+
+       **Compatibility and Upgrade Notes**
+
+       - Root crate version bumped to `1.1.2`; `oxidns-ripset` bumped to `0.1.1`; release tag should use `v1.1.2`.
+       - `v1.1.1` configs upgrade directly to `v1.1.2` with no new required fields.
+       - Linux deployments using the `nftset` plugin against `flags interval` sets should upgrade promptly; without this fix, those sets cannot accept any add on little-endian architectures.
+       - Deb-package upgrades no longer set systemd `WorkingDirectory`. If you relied on that value to resolve relative paths, set `-d/--working-dir` explicitly instead.
+       - Clients of `query_recorder` ranking APIs can now request larger `limit` values; existing 200-row responses parse unchanged, so behavior remains compatible.
+   </ReleaseCard>
+
+   <ReleaseCard version="v1.1.1" badge="Patch Release" date="2026-05-25">
+       **Release Scope**
+
+       - Patch Release adding `query_recorder` history clearing and tightening the WebUI plugin-deletion workflow. This release does not introduce breaking configuration changes.
+
+       **Changes**
+
+       - Added `DELETE /api/plugins/<tag>/records` for `query_recorder`, clearing persisted query records, execution-path `steps`, and the in-memory tail after flushing the background write queue. The response reports `cleared_records`.
+       - Added a “Clear history” action to the WebUI query records panel with a confirmation dialog, clearing-state feedback, and automatic refresh of records, selected detail, and plugin-hit stats after completion.
+       - Polished the WebUI plugin delete dialog: wider dependency-impact layout, wrapping for long fields, and clearer source / expected-target / removal-blocker details.
+       - Fixed delete-dialog cancellation bubbling into plugin cards and opening the plugin detail sheet.
+       - Fixed “repair in editor” removing the plugin before the user edits config; it now only switches to the editor for manual reference handling.
+       - Fixed delete icons becoming permanently visible and unclickable when config validation errors are present; the dialog can now open and show the error reason.
+
+       **Compatibility and Upgrade Notes**
+
+       - Root crate version bumped to `1.1.1`; release tag should use `v1.1.1`.
+       - `v1.1.0` configs upgrade directly to `v1.1.1` with no new required fields.
+       - `query_recorder` history clearing is optional and does not affect existing record capture, retention cleanup, or stats query behavior.
+       - Clearing history is irreversible and removes persisted query records plus path events for the selected recorder; on production systems, confirm the audit data is no longer needed before using it.
+   </ReleaseCard>
+
+   <ReleaseCard version="v1.1.0" badge="Minor Release" date="2026-05-25">
+       **Release Scope**
+
+       - Minor Release focused on safer configuration loading, upgrade and restart handling, `query_recorder` analytics, WebUI operations, and refreshed plugin documentation/navigation. This release includes a breaking `upgrade` configuration change; review related configs or automation before upgrading.
+
+       **Breaking Change**
+
+       - `upgrade` restart configuration changed from enum-style `restart: none|service` and CLI `--restart <none|service>` to boolean `no_restart: true` and `--no-restart`.
+       - The default behavior changed as well: successful `upgrade apply` now restarts the service automatically. To keep the old “do not restart after upgrade” behavior, explicitly set `no_restart: true` or pass `--no-restart`.
+
+       **Changes**
+
+       - Configuration loading now supports YAML environment placeholders: `${VAR}`, `${VAR:-default}`, and `$${...}`. Expansion runs during startup, `oxidns check`, management API validation, and save-time validation, includes `include` paths, and reports missing variables or syntax errors with variable name, line, and column.
+       - Reworked `upgrade apply` into a cross-platform flow. Windows now supports `.zip` archive extraction, binary replacement, and WebUI directory upgrades; zip extraction rejects unsafe paths to prevent zip-slip.
+       - Added GitHub token support for upgrades, useful for higher API rate limits or private repositories. CLI uses `--github-token`; plugin configuration uses `github_token`.
+       - Successful upgrades now restart by default. CLI upgrades restart the installed service through the platform service manager, while plugin-triggered upgrades request a graceful in-process restart that loads the new binary. To skip restart, use CLI `--no-restart` or plugin config `no_restart: true`.
+       - Added management control `POST /restart`. On Unix the process restarts in place with `exec`; on Windows service deployments it cooperates with SCM restart behavior. OxiDNS also captures the original executable path before binary replacement so Linux restarts do not fail on `/proc/self/exe (deleted)`.
+       - `query_recorder` gained aggregate stats APIs and WebUI charts: top clients, top qnames, qtype / rcode distributions, latency histogram, slow-query ranking, and minute/hour query trends. SQLite read/write settings were tuned for these aggregation queries.
+       - WebUI config lifecycle is clearer: top-level `runtime` / `api` / `log` changes now prompt for restart instead of hot reload; config rollback chooses hot reload or restart based on the changed fields, and restart progress is shown while the console waits for reconnection.
+       - WebUI plugin management now checks references before deletion, can replace references, remove safely removable references, or jump to the editor for manual repair. Plugin renames update references and ask for confirmation when other plugins are affected.
+       - Documentation refreshed the plugin overview and sidebar navigation, added the roadmap page, and clarified `redirect` rule forms, `qname` / `cname` domain rules, README roadmap, and disclaimers.
+
+       **Compatibility and Upgrade Notes**
+
+       - Root crate version bumped to `1.1.0`; release tag should use `v1.1.0`.
+       - `v1.0.2` DNS resolution configs generally upgrade directly to `v1.1.0`; environment placeholders are additive and do not affect configs that do not use them.
+       - Breaking Change: old `restart: none|service` and CLI `--restart <none|service>` are no longer accepted. Use `no_restart: true` / `--no-restart` instead. To preserve the old “do not restart after upgrade” behavior, set `no_restart: true` or pass `--no-restart`.
+       - Missing `${VAR}` placeholders now fail config parsing. Use `$${...}` for literal `${...}`, and quote placeholders when environment values may contain YAML-special characters.
+       - New `github_token` / `--github-token` support is optional and does not affect existing public-repository upgrade configs.
+       - Existing `query_recorder` deployments can use the new stats APIs and WebUI charts without config changes. The stats endpoints read SQLite history, so large databases should be monitored for disk and query latency.
+   </ReleaseCard>
+
+   <ReleaseCard version="v1.0.2" badge="Patch Release" date="2026-05-21">
+       **Release Scope**
+
+       - Patch Release fixing domain-based upstreams depending on local DNS during startup and config validation, and clarifying `bootstrap` versus `dial_addr` resolution precedence.
+
+       **Changes**
+
+       - Fixed `forward` address validation reusing full `ConnectionInfo` construction. Domain-based upstreams now perform syntax validation only and no longer trigger system DNS resolution during startup validation.
+       - Changed upstream connection-info construction so only literal IPs and explicit `dial_addr` values become startup-known remote IPs; hostnames remain as `server_name` and are resolved later through `bootstrap` or at first connection time.
+       - Clarified the runtime mutual exclusion between `dial_addr` and `bootstrap`: when both are configured, `dial_addr` takes precedence, `bootstrap` is ignored, and initialization emits a warning.
+       - Updated `forward` plugin reference docs and WebUI field descriptions with hostname resolution timing, the `bootstrap` / `dial_addr` either-or recommendation, and precedence behavior.
+       - Added regression coverage for deferring domain upstream resolution, preserving the SNI hostname with `dial_addr`, and `dial_addr` overriding `bootstrap`.
+
+       **Compatibility and Upgrade Notes**
+
+       - Root crate version bumped to `1.0.2`; release tag should use `v1.0.2`.
+       - `v1.0.1` configs upgrade directly to `v1.0.2` with no new required fields.
+       - Domain-based upstreams without `bootstrap` or `dial_addr` no longer block startup; the first connection still uses the operating system resolver.
+       - To avoid runtime dependence on local DNS entirely, configure exactly one of `bootstrap` or `dial_addr` for domain-based upstreams.
+       - Existing configs that set both `bootstrap` and `dial_addr` still start, but only `dial_addr` is effective.
+   </ReleaseCard>
+
+   <ReleaseCard version="v1.0.1" badge="Patch Release" date="2026-05-20">
+       **Release Scope**
+
+       - Patch Release fixing DNS response compliance issues, client-IP canonicalization, and WebUI usability problems from `v1.0.0`, while adding service management capabilities, installer scripts, and query-auditing UX improvements.
+
+       **Changes**
+
+       - Fixed `redirect` plugin placing synthetic CNAME records after other answers instead of first, aligning with RFC expectations.
+       - Fixed dual-stack sockets passing IPv4-mapped IPv6 addresses (`::ffff:x.x.x.x`) into `DnsContext` without canonicalization, causing `client_ip` matchers and other IP-dependent logic to misidentify them as IPv6.
+       - Fixed WebUI returning 404 on page refresh and added auto-connect to `/api` on first load for full-backend-hosting deployments.
+       - Added `service restart` CLI command for restarting OxiDNS when running as a system service.
+       - Added Linux / macOS / Windows hosted-service installer scripts (`install.sh` / `install.ps1`) for one-command install, registration, and service startup.
+       - `query_recorder` panel gained click-to-filter by matcher row, color-coded latency badges, and Info tooltips on record-count column headers.
+       - WebUI plugin detail sheets, cache dialogs, and config field editor polished: replaced native `confirm` with shadcn AlertDialog, adopted responsive two-column grid layout, and constrained content to `max-w-6xl` centered layout.
+
+       **Compatibility and Upgrade Notes**
+
+       - Root crate version bumped to `1.0.1`; release tag should use `v1.0.1`.
+       - `v1.0.0` configs upgrade directly to `v1.0.1` with no new required fields.
+       - Deployments using dual-stack sockets with `client_ip` matchers, ECS, or IP-dependent policies will see client IPs correctly canonicalized to IPv4 after upgrading.
+       - Installer scripts register the app as a system service by default; set `OXIDNS_INSTALL_SERVICE=0` for portable-only installation.
+   </ReleaseCard>
+
+   <ReleaseCard version="v1.0.0" badge="Major Release" date="2026-05-19">
+      **Release Scope**
+
+      - Major Release marking OxiDNS's move from an experimental plugin-driven DNS engine to the 1.0 stable line. `v1.0.0` officially includes the built-in WebUI management console and management API, plugin runtime, observability, packaging, and stability work since `v0.5.2`.
+
+      **Important Upgrade Notice**
+
+      - This release completes the project rename to OxiDNS. The GitHub repository, release assets, binary name, package metadata, service files, README files, docs site, logo, and startup banner now use `oxidns`.
+      - Older automatic upgrade flows still point at the pre-rename project and release assets, so they cannot upgrade directly to `v1.0.0`. When upgrading from an older build, manually download the matching OxiDNS release package, replace the binary, and deploy the bundled WebUI static assets.
+      - After this one-time manual migration, future upgrades should use the new `svenshi/oxidns` repository and `oxidns-*` release assets.
+
+      **WebUI Capabilities**
+
+      - OxiDNS WebUI brings runtime status, configuration, plugins, metrics, logs, query auditing, and cache management into one console, reducing day-to-day reliance on scattered CLI commands, log files, and handwritten API calls.
+      - Configuration management is safer for production use: YAML editing, live validation, config history, diff review, apply, and rollback live in one workflow, so complex policy changes can be reviewed before they take effect and recovered more easily.
+      - Plugin orchestration is easier to understand: plugin topology, plugin details, structured configuration, and the sequence composer make the DNS request path visible and reduce YAML reference mistakes, missing dependencies, and troubleshooting time.
+      - Troubleshooting is more direct: metrics, live logs, query records, execution flow, and cache details can be inspected together, making it easier to trace a problematic domain to matched rules, upstream behavior, cache state, and final responses.
+      - Deployment and access are simpler: the WebUI ships with release archives, Docker images, Debian packages, and the `upgrade` flow, and OxiDNS can host the static assets directly from the management API so one process serves both the API and the console.
+
+      **Changes**
+
+      - Reworked the management API into a prefixed unified entry point, adding auth/CORS support, runtime state, log streaming, metrics, config save/apply/rollback, and plugin API aggregation.
+      - Replaced the mutable global plugin registry with an immutable catalog plus runtime manager, simplified plugin factory creation context, hardened reload paths, and split registry internals into catalog, context, init_plan, and runtime modules.
+      - Added a shared plugin metrics layer covering servers, forward upstreams, cache, query recorder, and side-effect executors, with unified management API exposure.
+      - Expanded `query_recorder` with sampled matcher-hit stats, filtering, execution-flow visualization, record details, and cleaned-up model/store structures.
+      - Added cache management APIs for reading cached DNS response details, TTLs, hit metadata, record contents, and cache snapshots.
+      - Updated `upgrade`, release, Docker, Debian packaging, systemd service files, and CI workflows for the OxiDNS 1.0 release path.
+      - Completed the project branding migration from ForgeDNS to OxiDNS across GitHub templates and all user-facing project identity.
+      - Performance and stability work includes disabling Nagle on TCP upstreams, reducing split-lock pressure, moving dual-selector preferred probing out of forward, supporting dual-stack port-only listeners, and hardening global runtime-manager reloads.
+      - Refreshed README, quickstart, configuration, API, plugin reference, scenarios, benchmarks, and MikroTik policy routing documentation.
+
+      **Compatibility and Upgrade Notes**
+
+      - The root crate version is now `1.0.0`; the release tag should be `v1.0.0`.
+      - Existing `v0.5.2` DNS resolution configs should generally upgrade directly. This release mainly introduces the complete WebUI, management API, metrics, and packaging capabilities.
+      - When upgrading from pre-rename builds, do not rely on the old automatic upgrade flow to cross the rename boundary. Manually download the `v1.0.0` release package and complete the migration.
+      - The management API now uses a prefixed route layout. If reverse proxies, ACLs, or automation scripts call old API paths directly, confirm them against the updated API docs.
+      - For automatic upgrade, Docker, or Debian package deployments, confirm that the console static asset directory and service files are installed with the new package.
+      - Deployments relying on plugin reload, online config editing, or runtime APIs should validate auth, CORS, permissions, and rollback flows in a staging environment first.
+   </ReleaseCard>
+
+   <ReleaseCard version="v0.5.2" badge="Patch Release" date="2026-05-04">
+      **Release Scope**
+
+      - Patch Release focused on DoH / DoH3 upstream long-connection reuse and upstream duration parsing.
+
+      **Changes**
+
+      - Fixed an issue where DoH (HTTP/2) and DoH3 (HTTP/3) upstream connection pools could reuse already closed connections. After the remote peer closes an idle connection, the pool now evicts unavailable connections and recreates fresh ones, avoiding repeated `H2 send_request error` or `H3 send_request error` failures (Closed #78).
+      - Fixed upstream `timeout` configuration parsing. Values such as `timeout: 3` and `timeout: "3s"` now deserialize correctly and can be used during forward plugin initialization (Closed #79).
+      - Added unified duration parsing for duration-based fields, supporting units such as `ms`, `s`, `m`, `h`, and `d`. Bare numeric values are interpreted as seconds by default.
+
+      **Compatibility and Upgrade Notes**
+
+      - This release does not introduce new required configuration fields. Existing `v0.5.1` configurations can be upgraded directly.
+      - Duration-based fields such as `timeout` and `idle_timeout` support formats including `3`, `"3"`, `"3s"`, and `"500ms"`.
+      - Bare duration numbers are interpreted as seconds. Use an explicit `ms` suffix for millisecond-level values.
+      - Upgrading to `v0.5.2` is recommended for deployments that configure upstream `timeout`, or use DoH / DoH3 upstreams and have seen repeated request failures after long runtimes.
+  </ReleaseCard>
+</div>
+
+## 2026-04
+
+<div className="release-stack">
+  <ReleaseCard version="v0.5.1" badge="Patch Release" date="2026-04-28">
+      **Release Scope**
+
+      - Patch Release focused on `any_match` quick-setup dependency analysis and `query_recorder` pagination and cleanup boundaries.
+
+      **Changes**
+
+      - Fixed `any_match` dependency analysis so quick-setup matcher expressions are preserved and expanded correctly. Expressions such as `qname $provider` and `qtype 1` now keep their original meaning during startup and dependency analysis.
+      - Fixed `query_recorder` retention cleanup and pagination cursor boundaries. Cleanup cutoff time now uses real timestamps, and paginated listing fetches one extra row to detect whether another page exists.
+      - Adjusted `query_recorder` timestamp storage and read paths to avoid unnecessary unsigned conversions around record creation time.
+      - Updated the `upgrade` CLI default cache and backup directories to `./upgrade-cache` and `./upgrade-backups`, and fixed the matching default-value tests.
+
+      **Compatibility and Upgrade Notes**
+
+      - This release does not introduce new configuration fields. Existing `v0.5.0` configurations can be upgraded directly.
+      - Upgrading to `v0.5.1` is recommended for deployments that use `query_recorder` or quick-setup expressions inside `any_match`.
+      - `query_recorder` remains **Experimental**, and its API surface or configuration fields may still change in future releases.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.5.0" badge="Minor Release" date="2026-04-27">
+      **Release Scope**
+
+      - Minor Release adding query auditing, aggregate matcher support, and HTTP/3 discovery improvements.
+
+      **Changes**
+
+      - Added the `query_recorder` executor for persisted query logging with retention cleanup, plus plugin API endpoints for stats, paginated record listing, and single-record details.
+      - Added the `any_match` matcher so one matcher can aggregate multiple matcher expressions and return true when any branch matches, including negated expressions like `!$tag`.
+      - When HTTP/3 is enabled on the HTTP server, HTTP/2 responses now automatically advertise `Alt-Svc: h3=":<listen-port>"; ma=86400` so clients can discover and upgrade to H3.
+      - Fixed dependency tracking for negated matchers, for example `!$has_resp`, inside `sequence`, so quick setup and dependency analysis no longer miss those references (Closed #75).
+      - Unified time handling around `jiff + AppClock`, making cron scheduling, log time formatting, and system-time access paths more consistent.
+
+      **Compatibility and Upgrade Notes**
+
+      - This release does not require global config migrations. Existing `v0.4.x` configurations can be upgraded directly.
+      - `query_recorder` is currently **Experimental**. Its API surface and configuration fields may change in upcoming minor releases.
+      - To enable query auditing, insert `query_recorder` into the `sequence` chain and tune retention parameters according to disk budget.
+      - For automatic HTTP/3 discovery by DoH clients, ensure `enable_http3: true` is set and TLS certificate/key are configured correctly.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.4.2" badge="Patch Release" date="2026-04-24">
+      **Release Scope**
+
+      - Patch Release fixing connection release in upstream race scenarios and adding automatic upgrade support.
+
+      **Changes**
+
+      - Fixed an issue where some connections were not properly released in upstream race scenarios, such as when multiple concurrent upstreams were configured or fallback was enabled.
+      - Added the `upgrade` CLI tool and plugin to support automatic updates and binary replacement.
+      - When the application is running as a Linux service, `upgrade` can also restart it automatically after the update.
+
+      **Compatibility and Upgrade Notes**
+
+      - This release does not introduce new required configuration fields.
+      - Deployments that rely on concurrent upstream racing, fallback, or automatic upgrade flows can upgrade to `v0.4.2`.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.4.1" badge="Patch Release" date="2026-04-23">
+      **Release Scope**
+
+      - Patch Release fixing an upstream `request_map` memory leak and improving DoH HTTP response compatibility.
+
+      **Changes**
+
+      - Fixed an upstream `request_map` memory leak during connection close, request timeout, and abnormal cleanup paths, preventing pending query waiters and senders from being retained over time.
+      - Reworked `request_map` into a fixed-capacity sparse table so each connection no longer reserves the full `u16` DNS ID space.
+      - Fixed DoH response header generation so `application/dns-message` replies carry the correct `Content-Length`, and `Cache-Control: max-age=...` is derived from the actual DNS TTL.
+      - Common `NoError`, `NXDOMAIN`, and `NODATA` DoH responses now derive HTTP cache lifetime from answer TTLs or SOA negative TTLs. Refusal-style replies no longer advertise misleading cache headers.
+
+      **Compatibility and Upgrade Notes**
+
+      - This release does not add new configuration fields. Existing `v0.4.0` configs can be upgraded directly to `v0.4.1`.
+      - Because this release fixes an upstream `request_map` memory leak, upgrading to `v0.4.1` is recommended for long-running deployments with many persistent or concurrent upstream connections.
+      - For DoH access through `dig +https://...`, browsers, reverse proxies, or HTTP caches, the upgrade also improves HTTP response compatibility.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.4.0" badge="Minor Release" date="2026-04-19">
+      **Release Scope**
+
+      - Minor Release adding provider-scoped hot reload and reworking provider composition and initialization.
+
+      **Changes**
+
+      - Added the `reload_provider` executor plus the provider-scoped management API `POST /plugins/<provider_tag>/reload`. After downloading or overwriting rule files, OxiDNS can refresh only the affected providers instead of forcing a full application reload.
+      - Reworked provider composition so `domain_set` and `ip_set` compile only their own local rules and keep querying referenced providers from `sets` at runtime.
+      - Runtime initialization now skips providers that have no live dependents, so unused rule sets no longer spend startup time on file reads, dat parsing, or memory allocation.
+      - Expanded quick-setup dependency analysis into runtime reference paths such as `sequence` and `cron`, making plugin dependency graphs and init ordering more accurate.
+      - Added docs for targeted provider reload through both the API and the new `reload_provider` executor, including chained download-and-refresh examples.
+
+      **Compatibility and Upgrade Notes**
+
+      - Existing workflows that run `download` and then a full `reload` can usually switch to `download -> reload_provider` to avoid rebuilding unrelated plugins.
+      - `reload_provider` only refreshes an existing provider's config snapshot and external data files. If `config.yaml`, provider tags, `sets` topology, or the plugin list changes, keep using the full `reload` path.
+      - Providers that are not reachable from any live runtime path are no longer inserted into the runtime registry. Deployments that rely on a provider's runtime API surface or behavior must reference it directly or indirectly from a live `server`, `executor`, or `matcher`.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.3.2" badge="Patch Release" date="2026-04-16">
+      **Release Scope**
+
+      - Patch Release reducing false warning logs from normal connection lifecycles and improving debug output.
+
+      **Changes**
+
+      - Adjusted UDP, TCP, DoT, and DoQ upstream pool initialization so OxiDNS no longer pre-creates idle connections during startup, reducing false EOF / reset warnings when upstreams close idle sockets on their own.
+      - Expected TCP upstream lifecycle events such as EOF, connection recycling, and invalid-connection eviction are now logged at `debug` instead of `warn`.
+      - Downgraded DoH server-side TLS, HTTP/2, and HTTP/3 handshake aborts plus client-closed response-send failures to `debug`.
+      - Debug request/response logging now prints DNS `questions`, message IDs, EDNS data, and answers directly. `Record` now has a more readable `Debug` / `Display` representation.
+
+      **Compatibility and Upgrade Notes**
+
+      - This release does not introduce new configuration fields. Existing `0.3.x` configs can be upgraded as-is.
+      - Warning-count based alerting should see a noticeable drop in noise after `v0.3.2` because normal upstream disconnects and DoH client aborts are no longer treated as warnings.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.3.1" badge="Patch Release" date="2026-04-14">
+      **Release Scope**
+
+      - Patch Release fixing `sequence` builtin control-flow semantics and completing release metadata.
+
+      **Changes**
+
+      - Fixed `sequence` builtin control-flow semantics so `accept` / `reject` stop the current chain consistently, `return` explicitly resumes the caller, and nested `jump` / `goto` behavior is more consistent.
+      - Removed the old internal flow-state dependency from control-flow propagation and now relies on `ExecStep` directly, reducing ambiguity when `sequence`, `with_next` executors, and nested calls are combined.
+      - Expanded unit and integration coverage around `sequence`, including `accept`, `return`, `reject`, `jump`, `goto`, and `adguard_rule` / `question` driven branches.
+      - Added the metadata, README files, repository links, and versioned dependency declarations needed to publish `oxidns-proto`, `oxidns-zoneparser`, and `oxidns-ripset` to crates.io cleanly.
+      - Refreshed the `configuration`, `executor`, and `matcher` docs to explain builtin `sequence` control flow, `mark` syntax, and numeric `qtype` / `qclass` forms more clearly.
+
+      **Compatibility and Upgrade Notes**
+
+      - For policy layouts that depend on nested `sequence` calls or `jump` / `goto` / `return` combinations, `v0.3.1` is the recommended upgrade for predictable control-flow behavior.
+      - This release does not introduce new config fields; it focuses on control-flow fixes, test hardening, and release metadata cleanup.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.3.0" badge="Minor Release" date="2026-04-14">
+      **Release Scope**
+
+      - Minor Release adding HTTP callbacks, config checking, dat export, zone parsing, and Linux netlink integration.
+
+      **Changes**
+
+      - Added the `http_request` executor for synchronous or asynchronous `http/https` callbacks in either the `before` or `after` phase, with template placeholders, `json/form/body` payloads, SOCKS5, redirect handling, and configurable error modes.
+      - Added the `check` and `export-dat` CLI commands. `check --graph` performs static validation and prints the plugin dependency graph, while `export-dat` can export selected rules from `geosite.dat` / `geoip.dat` into OxiDNS or original text formats.
+      - Aligned `hosts` behavior with mosdns semantics, and upgraded `arbitrary` with a fuller zone parser that supports `$ORIGIN`, `$TTL`, `$INCLUDE`, `$GENERATE`, RFC3597, and broader record syntax.
+      - Switched the Linux `ipset` / `nftset` executors to an embedded Rust netlink backend, removing the runtime dependency on the `ipset` / `nft` shell commands.
+      - Split protocol, zone parsing, and Linux integration internals into three workspace crates: `oxidns-proto`, `zoneparser`, and `ripset`. Added a reusable wire-buffer pool on the network hot path and tuned UDP/TCP/upstream socket parameters.
+      - Added a dedicated CLI docs page and refreshed the `executor`, `provider`, `quickstart`, `benchmarks`, and `releases` chapters.
+
+      **Compatibility and Upgrade Notes**
+
+      - Unprefixed `hosts` rules now behave as `full:` rules; positive local answers now use a fixed TTL of `10`; and a name hit without a matching address family now returns `NoError + empty answer + fake SOA` instead of falling through the rest of the executor chain.
+      - `arbitrary` no longer provides the old quick-setup syntax. Migrate those cases to explicit `rules` / `files` configuration when upgrading.
+      - Quickstart added a Docker Compose example and clarified Docker image registry, Windows release assets, and service deployment guidance.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.2.1" badge="Patch Release" date="2026-04-03">
+      **Release Scope**
+
+      - Patch Release fixing DoH over HTTP/2 upstream GET handling and updating quickstart documentation.
+
+      **Changes**
+
+      - Fixed a DoH over HTTP/2 bug where GET requests did not close the request stream, causing some upstreams to time out after 5 seconds.
+      - Completed the `Question` `Display` implementation so logs and debug output render DNS questions consistently.
+      - Relaxed the cache TTL unit test to tolerate cross-second timing drift in CI.
+      - Removed the Docker `linux/arm/v7` support note from quickstart and added a `docker compose` deployment example.
+
+      **Compatibility and Upgrade Notes**
+
+      - This release does not introduce new configuration fields.
+      - Upgrading to `v0.2.1` is recommended for deployments using DoH over HTTP/2 upstream GET requests.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.2.0" badge="Feature Release" date="2026-04-02">
+      **Release Scope**
+
+      - Feature Release adding subscription download, scheduled jobs, script execution, and geodata provider support.
+
+      **Changes**
+
+      - Added the `download` executor for downloading remote `http/https` files to local storage, with SOCKS5 proxying, HTTP redirect following, and startup bootstrap for missing files.
+      - Added the `cron` executor for background jobs with interval or standard 5-field cron triggers.
+      - Added the `reload` executor for full application reloads.
+      - Added the `script` executor for running external commands with injected context fields.
+      - Added `geoip`, `geosite`, and `adguard_rule` providers, plus the `question` matcher. Extended `qname` matching to support `adguard_rule` rule sets directly.
+      - Cache now supports stale lazy refresh, rule matcher internals were split and optimized, and configurable log file rotation was added.
+      - Expanded documentation for `executor`, `matcher`, `provider`, `server`, `quickstart`, and `scenarios`, and added docs-site CI.
+
+      **Compatibility and Upgrade Notes**
+
+      - `startup_if_missing` is enabled by default for smoother first-deployment and rule-file bootstrap behavior.
+      - `ros_address_list` supports `fixed_ttl=0` for no-timeout behavior.
+      - Added `short_circuit` support to quick setup for `hosts`, `black_hole`, and `cache`.
+      - Removed the `hosts` quick setup to tighten early quick-setup behavior.
+      - Migrated from `serde_yml` to `serde_yaml_ng`, with several dependency and CI tooling updates.
+  </ReleaseCard>
+</div>
+
+## 2026-03
+
+<div className="release-stack">
+  <ReleaseCard version="v0.1.1" badge="Compatibility Update" date="2026-03-29">
+      **Release Scope**
+
+      - Compatibility Update standardizing the MikroTik-related executor name.
+
+      **Changes**
+
+      - Renamed the MikroTik-related executor to `ros_address_list` to better match its actual behavior and naming style.
+      - Corrected documentation examples and feature descriptions.
+      - Applied formatting cleanup to keep code and docs aligned.
+
+      **Compatibility and Upgrade Notes**
+
+      - Deployments that used the old MikroTik executor name in `v0.1.0` need to update the plugin type when upgrading to `v0.1.1`.
+  </ReleaseCard>
+
+  <ReleaseCard version="v0.1.0" badge="First Public Release" date="2026-03-28">
+      **Release Scope**
+
+      - First Public Release providing the initial OxiDNS plugin architecture and core capability set.
+
+      **Changes**
+
+      - Established the OxiDNS plugin architecture around `server -> DnsContext -> matcher / executor / provider -> upstream or side effects`.
+      - Completed server and upstream support for UDP, TCP, DoT, DoQ, and DoH.
+      - Delivered MosDNS-style `sequence` orchestration, `jump/goto/return` control flow, and `$tag` references.
+      - Added core executors such as `cache`, `forward`, `fallback`, `hosts`, `redirect`, `ecs_handler`, and `dual_selector`.
+      - Added `domain_set`, `ip_set`, query / response predicates, client IP, response IP, and CNAME-based matching capabilities.
+      - Added the management API, health checks, control endpoints, and plugin-related API surfaces. Added CLI commands with service-manager integration.
+      - Added Debian packaging, Docker workflow support, and the initial multi-platform release pipeline.
+      - Built reusable upstream connection pools and fetchers for UDP, TCP, DoT, DoH, and DoQ, and optimized matchers, cache, pools, request mapping, and clock updates on the hot path.
+
+      **Compatibility and Upgrade Notes**
+
+      - Tokio worker-thread count is configurable from runtime config.
+      - MikroTik RouterOS dynamic-route and address-list integration is available.
+      - Linux `ipset` / `nftset` command integration and test coverage are available.
+      - The first round of Chinese and English README, quickstart, configuration, and module documentation is included.
+  </ReleaseCard>
+</div>
