@@ -37,15 +37,21 @@
 - LuCI ACL: `/usr/share/rpcd/acl.d/luci-app-oxidns.json`
 - LuCI view: `/www/luci-static/resources/view/oxidns/status.js`
 - OpenWrt release matrix defaults:
-  - `x86_64` via SDK target `x86/64`
-  - `aarch64_cortex-a53` via SDK target `mediatek/filogic`
+  - `x86_64`
+  - `aarch64_cortex-a53`
 - `.ipk` release artifacts are published through GitHub Release assets, not an
   opkg package index in the first version.
+- GitHub Release packaging uses `packaging/openwrt/build-release-ipk.sh` with
+  prebuilt musl binaries and WebUI assets. Keep SDK source builds available via
+  `packaging/openwrt/oxidns/Makefile`, but do not require CI to compile LuCI
+  feed dependencies just to assemble release `.ipk` files.
 
 ### 4. Validation & Error Matrix
 
 - Missing `webui/out` or missing `OXIDNS_WEBUI_DIR` during package build ->
   fail package installation step with a clear "WebUI assets not found" error.
+- Missing `--webui` or an executable `--binary` for `build-release-ipk.sh` ->
+  fail before writing release artifacts.
 - Missing `api.http.auth.basic.password` in `/etc/oxidns/config.yaml` when
   resetting the password -> helper exits non-zero and prints an error.
 - `IPKG_INSTROOT` is set during image builds -> post-install must skip service
@@ -55,8 +61,9 @@
 
 ### 5. Good/Base/Bad Cases
 
-- Good: release CI packages existing musl binaries into SDK-generated `.ipk`
-  files and includes both `oxidns` and `luci-app-oxidns` artifacts.
+- Good: release CI assembles `.ipk` files directly from prebuilt musl binaries
+  and static WebUI assets, while runtime dependencies such as `luci-base` remain
+  declared in package control metadata.
 - Base: local SDK users can build from source when `webui/out` is present.
 - Bad: OpenWrt package starts OxiDNS on port `53` by default, conflicting with
   `dnsmasq`; use `:5335` unless the user intentionally changes config.
@@ -69,6 +76,8 @@
 - JSON parse check for LuCI menu and ACL files.
 - JavaScript syntax check for LuCI view files.
 - YAML parse check for the release workflow and packaged config.
+- Release IPK assembly script syntax check and a smoke test that emits both
+  `oxidns_*.ipk` and `luci-app-oxidns_*.ipk`.
 - `oxidns check -c <packaged config> -d <existing temp dir>` must pass.
 - Release workflow changes should be reviewed for artifact names consumed by the
   publish job.

@@ -259,6 +259,18 @@ opkg remove luci-app-oxidns oxidns
 
 ### Build With The OpenWrt SDK
 
+If you already have a cross-compiled `oxidns` binary and static `webui` assets,
+you can generate release-style `.ipk` files without fetching or compiling the
+OpenWrt SDK:
+
+```sh
+packaging/openwrt/build-release-ipk.sh \
+  --arch x86_64 \
+  --binary /absolute/path/to/oxidns \
+  --webui /absolute/path/to/webui \
+  --output /tmp/oxidns-ipk
+```
+
 Inside an OpenWrt SDK or buildroot:
 
 ```sh

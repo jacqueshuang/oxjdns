@@ -12,14 +12,26 @@ It defines two binary packages:
 
 ## Release build
 
-The GitHub release workflow builds `.ipk` packages with OpenWrt 24.10 SDKs for:
+The GitHub release workflow builds `.ipk` packages for OpenWrt / iStoreOS
+24.10-compatible package architectures:
 
-- `x86_64` via target `x86/64`
-- `aarch64_cortex-a53` via target `mediatek/filogic`
+- `x86_64`
+- `aarch64_cortex-a53`
 
-The workflow packages the existing `*-unknown-linux-musl` release binaries, so
-it does not rebuild Rust inside the OpenWrt SDK. The package `Makefile` still
-supports source builds when `OXIDNS_PREBUILT_BINARY` is not set.
+The workflow packages the existing `*-unknown-linux-musl` release binaries with
+`build-release-ipk.sh`, so it does not rebuild Rust or LuCI feed dependencies
+inside the OpenWrt SDK. The package `Makefile` still supports SDK source builds
+when `OXIDNS_PREBUILT_BINARY` is not set.
+
+For local release-style packaging with a prebuilt binary:
+
+```sh
+packaging/openwrt/build-release-ipk.sh \
+  --arch x86_64 \
+  --binary /absolute/path/to/oxidns \
+  --webui /absolute/path/to/webui \
+  --output /tmp/oxidns-ipk
+```
 
 ## Local SDK build
 

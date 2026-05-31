@@ -259,6 +259,16 @@ opkg remove luci-app-oxidns oxidns
 
 ### 使用 OpenWrt SDK 自行构建
 
+如果已经有交叉编译好的 `oxidns` 和 `webui` 静态文件，可以直接生成 Release 风格的 `.ipk`，不需要拉取或编译 OpenWrt SDK：
+
+```sh
+packaging/openwrt/build-release-ipk.sh \
+  --arch x86_64 \
+  --binary /absolute/path/to/oxidns \
+  --webui /absolute/path/to/webui \
+  --output /tmp/oxidns-ipk
+```
+
 在 OpenWrt SDK 或 buildroot 中：
 
 ```sh

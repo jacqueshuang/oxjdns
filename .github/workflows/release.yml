@@ -299,13 +299,11 @@ jobs:
       matrix:
         include:
           - label: x86_64
-            sdk_path: x86/64
-            sdk_name: x86-64
+            openwrt_arch: x86_64
             rust_target: x86_64-unknown-linux-musl
 
           - label: aarch64_cortex-a53
-            sdk_path: mediatek/filogic
-            sdk_name: mediatek-filogic
+            openwrt_arch: aarch64_cortex-a53
             rust_target: aarch64-unknown-linux-musl
 
     env:
@@ -314,14 +312,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-
-      - name: Install OpenWrt SDK dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential clang flex bison g++ gawk gcc-multilib gettext \
-            git libncurses-dev libssl-dev python3 rsync unzip wget zlib1g-dev \
-            file zstd
 
       - name: Download prebuilt OxiDNS archive
         uses: actions/download-artifact@v8
@@ -337,45 +327,19 @@ jobs:
           test -x openwrt-prebuilt/extracted/oxidns
           test -d openwrt-prebuilt/extracted/webui
 
-      - name: Download OpenWrt SDK
-        run: |
-          set -euo pipefail
-          INDEX_URL="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/targets/${{ matrix.sdk_path }}"
-          SDK_FILE="$(curl -fsSL "${INDEX_URL}/" | grep -o "openwrt-sdk-${OPENWRT_VERSION}-${{ matrix.sdk_name }}_[^\"]*Linux-x86_64.tar.zst" | head -n 1 || true)"
-          test -n "$SDK_FILE"
-          curl -fsSLO "${INDEX_URL}/${SDK_FILE}"
-          tar --zstd -xf "$SDK_FILE"
-          SDK_DIR="$(find "$PWD" -maxdepth 1 -type d -name "openwrt-sdk-${OPENWRT_VERSION}-*" | head -n 1)"
-          test -n "$SDK_DIR"
-          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
-
-      - name: Prepare OpenWrt package workspace
-        run: |
-          set -euo pipefail
-          cd "$SDK_DIR"
-          ./scripts/feeds update packages luci
-          ./scripts/feeds install rust ca-bundle luci-base rpcd
-          mkdir -p package/oxidns
-          cp -R "$GITHUB_WORKSPACE/packaging/openwrt/oxidns/"* package/oxidns/
-          cat >> .config <<'EOF'
-          CONFIG_PACKAGE_oxidns=y
-          CONFIG_PACKAGE_luci-app-oxidns=y
-          EOF
-          make defconfig
-
       - name: Build OpenWrt ipk packages
         run: |
           set -euo pipefail
-          cd "$SDK_DIR"
-          make package/oxidns/compile V=s \
-            OXIDNS_PREBUILT_BINARY="$GITHUB_WORKSPACE/openwrt-prebuilt/extracted/oxidns" \
-            OXIDNS_WEBUI_DIR="$GITHUB_WORKSPACE/openwrt-prebuilt/extracted/webui"
+          mkdir -p openwrt-artifacts
+          packaging/openwrt/build-release-ipk.sh \
+            --arch "${{ matrix.openwrt_arch }}" \
+            --binary "$GITHUB_WORKSPACE/openwrt-prebuilt/extracted/oxidns" \
+            --webui "$GITHUB_WORKSPACE/openwrt-prebuilt/extracted/webui" \
+            --output "$GITHUB_WORKSPACE/openwrt-artifacts"
 
       - name: Collect OpenWrt ipk packages
         run: |
           set -euo pipefail
-          mkdir -p openwrt-artifacts
-          find "$SDK_DIR/bin/packages" -type f \( -name "oxidns_*.ipk" -o -name "luci-app-oxidns_*.ipk" \) -print -exec cp {} openwrt-artifacts/ \;
           test -n "$(find openwrt-artifacts -type f -name '*.ipk' -print -quit)"
           for ipk in openwrt-artifacts/*.ipk; do
             base="$(basename "$ipk")"
