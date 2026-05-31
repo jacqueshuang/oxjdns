@@ -45,6 +45,11 @@
   prebuilt musl binaries and WebUI assets. Keep SDK source builds available via
   `packaging/openwrt/oxidns/Makefile`, but do not require CI to compile LuCI
   feed dependencies just to assemble release `.ipk` files.
+- OpenWrt package install scripts must not mutate `/etc/oxidns/config.yaml` just
+  to set the generated API password. Keep the password in
+  `/etc/oxidns/initial_password` and pass it to OxiDNS with
+  `OXIDNS_API_PASSWORD`; otherwise `opkg` treats the conffile as user-modified
+  on every upgrade.
 - OpenWrt 24.10 `.ipk` release artifacts must use the OpenWrt package envelope:
   a gzip-compressed tar containing `./debian-binary`, `./data.tar.gz`, and
   `./control.tar.gz`. Do not assemble them as Debian `ar` archives; OpenWrt
@@ -58,6 +63,10 @@
   fail before writing release artifacts.
 - Debian `ar`-style `.ipk` release output -> `opkg install` fails with
   "Malformed package file"; validate the outer archive with `tar -tzf`.
+- Mutating `/etc/oxidns/config.yaml` during post-install -> future upgrades may
+  emit `resolve_conffiles` warnings and create `/etc/oxidns/config.yaml-opkg`.
+  For legacy installs, migrate only when the existing config and `.opkg` config
+  differ only by comments and the password line.
 - Missing `api.http.auth.basic.password` in `/etc/oxidns/config.yaml` when
   resetting the password -> helper exits non-zero and prints an error.
 - `IPKG_INSTROOT` is set during image builds -> post-install must skip service

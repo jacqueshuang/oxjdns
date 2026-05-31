@@ -1,8 +1,8 @@
 # OxiDNS default configuration for OpenWrt and iStoreOS.
 #
-# The package postinst script replaces the placeholder password with a
-# generated random value and stores the same value in:
+# The package postinst script stores a generated random password in:
 # /etc/oxidns/initial_password
+# The procd init script passes it through OXIDNS_API_PASSWORD.
 
 log:
   level: info
@@ -13,7 +13,7 @@ api:
     auth:
       type: basic
       username: admin
-      password: "__OXIDNS_GENERATE_ON_INSTALL__"
+      password: "${OXIDNS_API_PASSWORD:-__OXIDNS_GENERATE_ON_INSTALL__}"
     webui:
       root: "/usr/share/oxidns/webui"
 

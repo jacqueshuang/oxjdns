@@ -72,3 +72,8 @@ make package/oxidns/compile V=s \
 The package post-install script initializes the random API password, enables the
 service, and starts it on real devices. It skips service startup when
 `IPKG_INSTROOT` is set during image builds.
+
+The generated API password is stored in `/etc/oxidns/initial_password` and is
+passed to OxiDNS through `OXIDNS_API_PASSWORD` by the init script. The installer
+does not rewrite `/etc/oxidns/config.yaml` for password generation, so routine
+upgrades do not mark the config as changed unless the user actually edited it.

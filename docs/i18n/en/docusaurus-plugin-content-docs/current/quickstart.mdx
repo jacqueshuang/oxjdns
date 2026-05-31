@@ -257,6 +257,12 @@ opkg remove luci-app-oxidns oxidns
 
 `/etc/oxidns/config.yaml` and `/etc/oxidns/initial_password` are config files and are kept where possible during upgrades or package removal. Delete `/etc/oxidns` and `/var/lib/oxidns` manually when you want a full purge.
 
+The generated API password is stored in `/etc/oxidns/initial_password` and is
+passed to OxiDNS through `OXIDNS_API_PASSWORD` by the init script. The installer
+does not rewrite `/etc/oxidns/config.yaml` just to generate a password, so
+routine upgrades do not repeatedly trigger `opkg` conffile-difference notices
+because of password changes.
+
 ### Build With The OpenWrt SDK
 
 If you already have a cross-compiled `oxidns` binary and static `webui` assets,

@@ -5,6 +5,7 @@ PASSWORD_FILE=${OXIDNS_PASSWORD_FILE:-/etc/oxidns/initial_password}
 SERVICE=/etc/init.d/oxidns
 WORKDIR=${OXIDNS_WORKDIR:-/var/lib/oxidns}
 PLACEHOLDER=__OXIDNS_GENERATE_ON_INSTALL__
+ENV_PLACEHOLDER='${OXIDNS_API_PASSWORD:-__OXIDNS_GENERATE_ON_INSTALL__}'
 
 umask 077
 
@@ -33,6 +34,10 @@ read_config_password() {
 	' "$CONFIG"
 }
 
+password_is_placeholder() {
+	[ "$1" = "$PLACEHOLDER" ] || [ "$1" = "$ENV_PLACEHOLDER" ]
+}
+
 write_password_file() {
 	local password="$1"
 
@@ -45,40 +50,69 @@ json_escape() {
 	printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
-replace_config_password() {
-	local password="$1"
-	local tmp
+mask_config_password_line() {
+	sed 's|^\([[:space:]]*password:[[:space:]]*\).*$|\1"__OXIDNS_PASSWORD__"|'
+}
 
-	[ -f "$CONFIG" ] || fail "config not found: $CONFIG"
-	grep -q '^[[:space:]]*password:[[:space:]]*' "$CONFIG" || \
-		fail "api.http.auth.basic.password not found in $CONFIG"
+normalize_config_for_migration() {
+	mask_config_password_line | sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d'
+}
 
-	tmp="${CONFIG}.tmp.$$"
-	sed "s|^\([[:space:]]*password:[[:space:]]*\).*$|\1\"${password}\"|" "$CONFIG" > "$tmp" || {
-		rm -f "$tmp"
-		fail "failed to update $CONFIG"
+migrate_opkg_config_if_safe() {
+	local opkg_config="${CONFIG}-opkg"
+	local old_masked
+	local new_masked
+	local password
+
+	[ -f "$opkg_config" ] || return 0
+	[ -f "$CONFIG" ] || {
+		mv "$opkg_config" "$CONFIG"
+		chmod 600 "$CONFIG"
+		return 0
 	}
 
-	cat "$tmp" > "$CONFIG"
-	rm -f "$tmp"
-	chmod 600 "$CONFIG"
+	old_masked="${CONFIG}.old-mask.$$"
+	new_masked="${CONFIG}.new-mask.$$"
+	normalize_config_for_migration < "$CONFIG" > "$old_masked" || {
+		rm -f "$old_masked" "$new_masked"
+		return 0
+	}
+	normalize_config_for_migration < "$opkg_config" > "$new_masked" || {
+		rm -f "$old_masked" "$new_masked"
+		return 0
+	}
+
+	if cmp -s "$old_masked" "$new_masked"; then
+		password="$(read_config_password)"
+		if [ -n "$password" ] && ! password_is_placeholder "$password"; then
+			write_password_file "$password"
+		fi
+		cat "$opkg_config" > "$CONFIG"
+		rm -f "$opkg_config"
+		chmod 600 "$CONFIG"
+	fi
+
+	rm -f "$old_masked" "$new_masked"
 }
 
 init_config() {
 	mkdir -p "$(dirname "$CONFIG")" "$WORKDIR"
 
 	[ -f "$CONFIG" ] || fail "config not found: $CONFIG"
-
-	if grep -q "$PLACEHOLDER" "$CONFIG"; then
-		reset_password "no-restart"
-		return 0
-	fi
+	migrate_opkg_config_if_safe
 
 	if [ ! -s "$PASSWORD_FILE" ]; then
 		local password
 		password="$(read_config_password)"
-		[ -n "$password" ] && write_password_file "$password"
+		if [ -n "$password" ] && ! password_is_placeholder "$password"; then
+			write_password_file "$password"
+		else
+			reset_password "no-restart" >/dev/null
+		fi
+		return 0
 	fi
+
+	chmod 600 "$PASSWORD_FILE"
 }
 
 show_password() {
@@ -97,7 +131,6 @@ reset_password() {
 	password="$(generate_password)"
 	[ -n "$password" ] || fail "failed to generate password"
 
-	replace_config_password "$password"
 	write_password_file "$password"
 
 	if [ "$mode" != "no-restart" ] && pidof oxidns >/dev/null 2>&1; then
