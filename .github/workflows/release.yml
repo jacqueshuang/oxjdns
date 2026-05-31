@@ -391,6 +391,10 @@ jobs:
           RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
         run: |
           set -euo pipefail
+          if [ -z "${TELEGRAM_BOT_TOKEN}" ] || [ -z "${TELEGRAM_CHAT_ID}" ]; then
+            echo "Telegram secrets are not configured; skipping notification."
+            exit 0
+          fi
           MESSAGE=$(printf '🎉 OxiDNS %s 已发布\n\n👉 查看更新：%s' "$VERSION" "$RELEASE_URL")
           curl -sS --fail-with-body \
             -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
