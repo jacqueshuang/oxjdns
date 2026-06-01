@@ -109,6 +109,20 @@ write_archive() {
   echo "$output_file"
 }
 
+write_luci_cache_refresh_script() {
+  local output_file="$1"
+
+  cat > "$output_file" <<'EOF'
+#!/bin/sh
+[ -n "${IPKG_INSTROOT}" ] && exit 0
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+rm -rf /tmp/luci-modulecache/
+/etc/init.d/rpcd reload >/dev/null 2>&1 || true
+exit 0
+EOF
+  chmod 0755 "$output_file"
+}
+
 build_oxidns() {
   local work_dir="$tmp_root/oxidns"
   local data_dir="$work_dir/data"
@@ -199,6 +213,9 @@ Description: LuCI support for OxiDNS
  start/stop/restart, displays or resets the generated API password, and links
  to the bundled OxiDNS WebUI.
 EOF
+
+  write_luci_cache_refresh_script "$control_dir/postinst"
+  write_luci_cache_refresh_script "$control_dir/postrm"
 
   write_archive "luci-app-oxidns" "all" "$work_dir"
 }

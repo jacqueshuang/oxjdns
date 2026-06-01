@@ -238,6 +238,15 @@ opkg install ./oxidns-openwrt-24.10.*-<架构>-oxidns_*.ipk \
 
 也可以在 LuCI / iStoreOS 管理界面中打开 **服务 → OxiDNS**，查看服务状态、启动/停止/重启、查看或重置密码，并跳转到 OxiDNS 自带 WebUI。
 
+如果安装后侧边栏暂时没有出现 OxiDNS，请先确认同时安装了 `luci-app-oxidns` 包，然后刷新 LuCI 菜单缓存：
+
+```sh
+opkg install ./oxidns-openwrt-24.10.*-<架构>-luci-app-oxidns_*.ipk
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+rm -rf /tmp/luci-modulecache/
+/etc/init.d/rpcd reload
+```
+
 局域网访问：
 
 ```text

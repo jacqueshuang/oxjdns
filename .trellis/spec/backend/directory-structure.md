@@ -37,6 +37,10 @@
 - LuCI menu: `/usr/share/luci/menu.d/luci-app-oxidns.json`
 - LuCI ACL: `/usr/share/rpcd/acl.d/luci-app-oxidns.json`
 - LuCI view: `/www/luci-static/resources/view/oxidns/status.js`
+- LuCI cache refresh on `luci-app-oxidns` install/remove:
+  - remove `/tmp/luci-indexcache` and `/tmp/luci-indexcache.*`
+  - remove `/tmp/luci-modulecache/`
+  - reload `rpcd`
 - OpenWrt release matrix defaults:
   - `x86_64`
   - `aarch64_cortex-a53`
@@ -78,6 +82,8 @@
   resetting the password -> helper exits non-zero and prints an error.
 - `IPKG_INSTROOT` is set during image builds -> post-install must skip service
   enable/start side effects.
+- Missing LuCI cache refresh after installing `luci-app-oxidns` -> the OxiDNS
+  menu entry can remain hidden until LuCI/rpcd caches are cleared manually.
 - LuCI action helper returns invalid JSON for status -> LuCI page must surface a
   notification instead of silently claiming success.
 
@@ -97,6 +103,8 @@
 - Shell syntax check for init/helper scripts with `sh -n`.
 - JSON parse check for LuCI menu and ACL files.
 - JavaScript syntax check for LuCI view files.
+- IPK smoke test for `luci-app-oxidns` must confirm `control.tar.gz` contains
+  executable `postinst` and `postrm` scripts that refresh LuCI/rpcd caches.
 - YAML parse check for the release workflow and packaged config.
 - Release IPK assembly script syntax check and a smoke test that emits both
   `oxidns_*.ipk` and `luci-app-oxidns_*.ipk`.
