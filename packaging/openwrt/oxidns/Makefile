@@ -117,5 +117,23 @@ define Package/luci-app-oxidns/install
 	$(INSTALL_DATA) ./files/www/luci-static/resources/view/oxidns/status.js $(1)/www/luci-static/resources/view/oxidns/status.js
 endef
 
+define Package/luci-app-oxidns/postinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] && exit 0
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+rm -rf /tmp/luci-modulecache/
+/etc/init.d/rpcd reload >/dev/null 2>&1 || true
+exit 0
+endef
+
+define Package/luci-app-oxidns/postrm
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] && exit 0
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+rm -rf /tmp/luci-modulecache/
+/etc/init.d/rpcd reload >/dev/null 2>&1 || true
+exit 0
+endef
+
 $(eval $(call BuildPackage,oxidns))
 $(eval $(call BuildPackage,luci-app-oxidns))

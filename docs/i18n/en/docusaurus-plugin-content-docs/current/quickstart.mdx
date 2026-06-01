@@ -238,6 +238,17 @@ Service controls:
 
 In LuCI / iStoreOS, open **Services → OxiDNS** to view status, start/stop/restart the service, display or reset the password, and open the bundled OxiDNS WebUI.
 
+If the OxiDNS entry does not appear in the sidebar after installation, first
+make sure the `luci-app-oxidns` package is installed, then refresh the LuCI
+menu cache:
+
+```sh
+opkg install ./oxidns-openwrt-24.10.*-<arch>-luci-app-oxidns_*.ipk
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+rm -rf /tmp/luci-modulecache/
+/etc/init.d/rpcd reload
+```
+
 LAN access:
 
 ```text

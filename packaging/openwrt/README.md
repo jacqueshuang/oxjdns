@@ -79,3 +79,7 @@ passed to OxiDNS through `OXIDNS_API_PASSWORD` by the init script. The package
 ships `/usr/share/oxidns/config.default.yaml` and creates
 `/etc/oxidns/config.yaml` only when it is missing, so routine upgrades do not
 reinstall or compare the runtime config unless the user explicitly manages it.
+
+The `luci-app-oxidns` package refreshes LuCI menu/module caches and reloads
+`rpcd` after install or removal so the sidebar entry and ACL are picked up
+without a manual router reboot.
