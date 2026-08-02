@@ -39,7 +39,7 @@ jobs:
     name: Lint / Fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install system packages on Linux
         run: |
@@ -61,7 +61,7 @@ jobs:
       - name: Run clippy
         run: cargo +nightly clippy --locked --workspace --all-targets --all-features -- -D warnings
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-shear
 
@@ -89,7 +89,7 @@ jobs:
             run_build: false
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install system packages on Linux
         if: runner.os == 'Linux'
@@ -116,7 +116,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
